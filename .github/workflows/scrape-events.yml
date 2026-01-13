@@ -60,7 +60,7 @@ jobs:
         continue-on-error: true
 
       - name: Generate embeddings (optional)
-        if: ${{ secrets.OPENAI_API_KEY != '' }}
+        if: secrets.OPENAI_API_KEY != ''
         working-directory: scrapers
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
