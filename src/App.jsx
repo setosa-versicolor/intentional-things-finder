@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './App.css';
+import { getRecommendations as getRecommendationsAPI } from './api';
 
 // Madison-specific curated places (this becomes a data layer later)
 const MADISON_PLACES = [
@@ -391,24 +392,79 @@ const ResultsScreen = ({ recommendations, onBack }) => {
 function App() {
   const [screen, setScreen] = useState('input');
   const [recommendations, setRecommendations] = useState([]);
-  
-  const handleSubmit = (preferences) => {
-    const recs = getRecommendations(preferences, 3);
-    setRecommendations(recs);
+  const [loading, setLoading] = useState(false);
+  const [usingAPI, setUsingAPI] = useState(false);
+
+  const handleSubmit = async (preferences) => {
+    setLoading(true);
+
+    try {
+      // Try API first
+      const apiResults = await getRecommendationsAPI(preferences);
+
+      if (apiResults && apiResults.length > 0) {
+        // Transform API response to match local format
+        const transformedResults = apiResults.map(rec => ({
+          id: rec.id,
+          name: rec.title,
+          type: rec.type,
+          neighborhood: rec.neighborhood,
+          vibe: {
+            quiet: parseFloat(rec.vibe_quiet),
+            inside: parseFloat(rec.vibe_inside)
+          },
+          bestTimes: rec.best_times || [],
+          walkMinutes: rec.walk_minutes_from_center,
+          story: rec.description,
+          nudge: rec.nudge || 'Enjoy your visit!',
+          tags: rec.tags || [],
+          coords: {
+            lat: parseFloat(rec.lat),
+            lng: parseFloat(rec.lng)
+          },
+          hours: typeof rec.hours === 'string' ? rec.hours : 'Check website',
+          kidFriendly: rec.kid_friendly,
+          lowEnergy: rec.low_energy
+        }));
+
+        setRecommendations(transformedResults);
+        setUsingAPI(true);
+        console.log('✅ Using API recommendations');
+      } else {
+        // Fallback to local scoring
+        const localResults = getRecommendations(preferences, 3);
+        setRecommendations(localResults);
+        setUsingAPI(false);
+        console.log('⚠️ API unavailable, using local recommendations');
+      }
+    } catch (error) {
+      // Fallback to local scoring on error
+      console.warn('API error, falling back to local:', error);
+      const localResults = getRecommendations(preferences, 3);
+      setRecommendations(localResults);
+      setUsingAPI(false);
+    }
+
+    setLoading(false);
     setScreen('results');
   };
-  
+
   const handleBack = () => {
     setScreen('input');
     setRecommendations([]);
   };
-  
+
   return (
     <div className="app">
       {screen === 'input' ? (
         <InputScreen onSubmit={handleSubmit} />
       ) : (
-        <ResultsScreen recommendations={recommendations} onBack={handleBack} />
+        <ResultsScreen
+          recommendations={recommendations}
+          onBack={handleBack}
+          loading={loading}
+          usingAPI={usingAPI}
+        />
       )}
     </div>
   );

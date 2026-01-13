@@ -1,8 +1,10 @@
-# Intentional Things Finder
+# Intentional Things Finder v2
 
 *Three suggestions, max. No scrolling.*
 
 A lightweight app that helps you discover locally unique, intentional experiences—the kind of stuff your east-side Madison friend loves and you consistently gravitate toward when traveling or planning time well.
+
+**Version 2 adds a robust tagged database** with hybrid search, event scrapers, and a recommendation API.
 
 ## Philosophy
 
@@ -50,20 +52,38 @@ npm run build
 ## Project Structure
 
 ```
-intentional-things-finder/
-├── src/
-│   ├── App.jsx          # Main app logic and components
-│   ├── App.css          # All styling
-│   └── index.jsx        # Entry point
-├── index.html           # HTML template
-├── package.json
-├── vite.config.js
-└── README.md
+intentional-things-finder_v2/
+├── src/                          # React frontend (existing MVP)
+│   ├── App.jsx                   # Main app logic
+│   ├── App.css                   # All styling
+│   └── index.jsx
+├── migrations/                    # Database schema
+│   ├── 001_initial_schema.sql    # Core tables
+│   └── 002_seed_madison_places.sql
+├── scrapers/                      # Event scrapers
+│   ├── isthmus-scraper.js        # Isthmus calendar
+│   ├── 608today-scraper.js       # 608today articles
+│   ├── generate-embeddings.js    # Vector embeddings
+│   └── README.md
+├── api/                           # Recommendation API
+│   ├── server.js                 # Express API
+│   └── package.json
+├── database-schema.md            # Schema documentation
+├── IMPLEMENTATION_GUIDE.md       # Step-by-step setup
+└── README.md                     # This file
 ```
 
 ## Data Architecture
 
-Currently, places are stored as a local array in `App.jsx`. This is intentional for the MVP—it keeps the app simple and lets you personally curate each entry.
+**V1 (MVP):** Places stored as a local array in `App.jsx` - simple and hand-curated.
+
+**V2 (Current):** PostgreSQL database with:
+- **Places table**: Your 8 curated Madison spots (migrated from MVP)
+- **Events table**: Scraped from Isthmus and 608today (auto-updated)
+- **pgvector embeddings**: Semantic search capability (optional)
+- **Hybrid search**: Structured filtering + vibe scoring + vector similarity
+
+See `database-schema.md` for full details.
 
 ### Place schema
 
@@ -101,58 +121,112 @@ The app uses a simple weighted scoring system:
 
 ## Roadmap
 
-### Phase 1: Madison MVP (current)
+### Phase 1: Madison MVP ✅
 - [x] Core input/output flow
 - [x] Place data structure
 - [x] Scoring algorithm
 - [x] Responsive design
 - [x] Dark mode support
 
-### Phase 2: Polish
+### Phase 2: Polish (current goals)
 - [ ] Weather awareness (integrate API, adjust outdoor weighting)
 - [ ] "Save for later" functionality
 - [ ] Share a suggestion via link
 - [ ] PWA support (add to home screen)
 
-### Phase 3: Multi-city
+### Phase 3: Database Infrastructure ✅ **← We are here!**
+- [x] Database schema design
+- [x] PostgreSQL + pgvector setup
+- [x] Event scrapers (Isthmus, 608today)
+- [x] Recommendation API
+- [x] Vector embeddings
+- [ ] Connect frontend to API
+- [ ] Deploy to production
+
+### Phase 4: Multi-city Expansion
 - [ ] City selector
-- [ ] Data separated by city (JSON files or simple CMS)
+- [ ] Add Chicago, Milwaukee data
 - [ ] User location detection
 - [ ] Travel mode (discover a new city)
 
-### Phase 4: Personalization
+### Phase 5: Personalization
 - [ ] "Not this one" feedback loop
 - [ ] Couples mode (two people, shared constraints)
-- [ ] "Visiting family" mode
+- [ ] Learning from user choices
 - [ ] Time-of-year awareness
 
-### Phase 5: Agent playground
+### Phase 6: Agent Playground
 - [ ] Calendar integration (knows your free windows)
 - [ ] Weather-reactive suggestions
-- [ ] Learning from feedback
-- [ ] Local creator contributions
+- [ ] Advanced learning from feedback
+- [ ] Local creator contributions platform
+
+## Quick Start (New Database System)
+
+### 1. Set Up Database
+```bash
+createdb intentional_things
+psql intentional_things < migrations/001_initial_schema.sql
+psql intentional_things < migrations/002_seed_madison_places.sql
+```
+
+### 2. Run Scrapers
+```bash
+cd scrapers
+npm install
+cp .env.example .env  # Add DATABASE_URL and OPENAI_API_KEY
+npm run scrape:all
+node generate-embeddings.js  # Optional
+```
+
+### 3. Start API
+```bash
+cd api
+npm install
+npm start  # Runs on http://localhost:3001
+```
+
+### 4. Test Recommendations
+```bash
+curl -X POST http://localhost:3001/api/recommendations \
+  -H "Content-Type: application/json" \
+  -d '{"timeAvailable": 120, "quietSocial": 0.7, "insideOutside": 0.5, "kidFriendly": false, "lowEnergy": true}'
+```
+
+**See `IMPLEMENTATION_GUIDE.md` for detailed setup instructions.**
+
+---
 
 ## Adding New Places
 
-To add a place to Madison, add an entry to the `MADISON_PLACES` array in `src/App.jsx`:
+**V1 Method (still works for local dev):** Add to `MADISON_PLACES` array in `src/App.jsx`.
 
-```javascript
-{
-  id: 9, // increment
-  name: "Your Place Name",
-  type: "café", // keep these consistent
-  neighborhood: "Neighborhood Name",
-  vibe: { quiet: 0.7, inside: 0.9 }, // tune these
-  bestTimes: ["afternoon"],
-  walkMinutes: 15, // from capitol square
-  story: "What makes this place special. Be specific. Be opinionated.",
-  nudge: "Exact instructions. What to order. Where to sit. What to bring.",
-  tags: ["relevant", "tags"],
-  coords: { lat: 43.xxxx, lng: -89.xxxx },
-  hours: "Human readable hours",
-  kidFriendly: true,
-  lowEnergy: true
-}
+**V2 Method (recommended):** Insert into database:
+
+```sql
+INSERT INTO places (
+  city_id, name, slug, type, neighborhood,
+  vibe_quiet, vibe_inside,
+  best_times, walk_minutes_from_center,
+  story, nudge, tags,
+  lat, lng, hours,
+  kid_friendly, low_energy, price_level
+) VALUES (
+  1, -- Madison city_id
+  'Your Place Name',
+  'your-place-name',
+  'café',
+  'Neighborhood Name',
+  0.7, 0.9, -- vibe scores
+  ARRAY['afternoon'],
+  15,
+  'What makes this place special. Be specific. Be opinionated.',
+  'Exact instructions. What to order. Where to sit. What to bring.',
+  ARRAY['relevant', 'tags'],
+  43.xxxx, -89.xxxx,
+  '{"general": "9am-5pm"}',
+  TRUE, TRUE, 2
+);
 ```
 
 **Writing good stories:**

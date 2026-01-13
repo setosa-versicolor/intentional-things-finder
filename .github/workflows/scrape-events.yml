@@ -1,0 +1,76 @@
+name: Scrape Events Daily
+
+on:
+  # Run daily at 6am UTC (12am/1am Central depending on DST)
+  schedule:
+    - cron: '0 6 * * *'
+
+  # Allow manual triggering from GitHub UI
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: scrapers/package-lock.json
+
+      - name: Install dependencies
+        working-directory: scrapers
+        run: |
+          npm ci
+          # Install Chromium dependencies for Puppeteer
+          sudo apt-get update
+          sudo apt-get install -y \
+            libnss3 \
+            libatk-bridge2.0-0 \
+            libdrm2 \
+            libxkbcommon0 \
+            libxcomposite1 \
+            libxdamage1 \
+            libxfixes3 \
+            libxrandr2 \
+            libgbm1 \
+            libasound2
+
+      - name: Scrape Isthmus events
+        working-directory: scrapers
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          echo "🚀 Starting Isthmus scraper..."
+          node isthmus-scraper.js || echo "⚠️ Isthmus scraper failed"
+        continue-on-error: true
+
+      - name: Scrape 608today events
+        working-directory: scrapers
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          echo "🚀 Starting 608today scraper..."
+          node 608today-scraper.js || echo "⚠️ 608today scraper failed"
+        continue-on-error: true
+
+      - name: Generate embeddings (optional)
+        if: ${{ secrets.OPENAI_API_KEY != '' }}
+        working-directory: scrapers
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          echo "🧠 Generating embeddings..."
+          node generate-embeddings.js || echo "⚠️ Embedding generation failed"
+        continue-on-error: true
+
+      - name: Summary
+        run: |
+          echo "✅ Scraping workflow completed"
+          echo "Check the logs above for details"

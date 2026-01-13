@@ -1,0 +1,22 @@
+{
+  "name": "intentional-things-scrapers",
+  "version": "1.0.0",
+  "description": "Event scrapers for Intentional Things Finder",
+  "type": "module",
+  "scripts": {
+    "scrape:isthmus": "node isthmus-scraper.js",
+    "scrape:608today": "node 608today-scraper.js",
+    "scrape:all": "npm run scrape:isthmus && npm run scrape:608today",
+    "process:raw": "node process-raw-events.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "cheerio": "^1.0.0-rc.12",
+    "puppeteer": "^21.0.0",
+    "pg": "^8.11.0",
+    "dotenv": "^16.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  }
+}

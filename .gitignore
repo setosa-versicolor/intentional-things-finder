@@ -26,3 +26,19 @@ npm-debug.log*
 
 # Optional: local data/testing
 *.local.js
+
+# Claude temp files
+tmpclaude-*
+.claude/
+
+# Backup files
+*2.jsx
+*.bak
+
+# Test files
+test-*.html
+test-*.json
+check-*.js
+view-*.js
+run-*.js
+*-page.html
