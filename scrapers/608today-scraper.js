@@ -346,7 +346,9 @@ async function main() {
 }
 
 // Run if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Convert argv[1] to file URL with forward slashes for cross-platform compatibility
+if (import.meta.url === new URL(process.argv[1], 'file:').href ||
+    import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`) {
   main();
 }
 
