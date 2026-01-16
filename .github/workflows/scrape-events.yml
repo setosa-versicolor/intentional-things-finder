@@ -40,13 +40,13 @@ jobs:
             libxrandr2 \
             libgbm1
 
-      - name: Scrape Isthmus events
+      - name: Scrape Isthmus events (ICS feed)
         working-directory: scrapers
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          echo "🚀 Starting Isthmus scraper..."
-          node isthmus-scraper.js || echo "⚠️ Isthmus scraper failed"
+          echo "🚀 Starting Isthmus ICS scraper..."
+          node isthmus-ics-scraper.js || echo "⚠️ Isthmus scraper failed"
         continue-on-error: true
 
       - name: Scrape 608today events
