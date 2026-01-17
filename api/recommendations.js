@@ -10,6 +10,7 @@ import {
   calculateTimeBonus,
   checkTimeConstraint,
 } from './_lib/db.js';
+import { generatePreferenceEmbedding } from './_lib/embeddings.js';
 
 export default async function handler(req, res) {
   // Only allow POST
@@ -95,7 +96,41 @@ export default async function handler(req, res) {
 
     const activities = await pool.query(query, params);
 
-    // Score each activity
+    // Generate embedding for user preferences (for semantic matching)
+    let userEmbedding = null;
+    let semanticScores = new Map();
+
+    try {
+      userEmbedding = await generatePreferenceEmbedding({
+        quietToLively,
+        activeToRelaxing,
+        location,
+        tags
+      });
+
+      if (userEmbedding) {
+        // Calculate cosine similarity for all activities with embeddings
+        // Using pgvector's <=> operator (cosine distance, lower is better)
+        const similarities = await pool.query(`
+          SELECT id, type, 1 - (embedding <=> $1::vector) as similarity
+          FROM activities
+          WHERE city_id = $2 AND is_active = TRUE AND embedding IS NOT NULL
+        `, [JSON.stringify(userEmbedding), cityId]);
+
+        // Store similarities in a map for quick lookup
+        similarities.rows.forEach(row => {
+          const key = `${row.type}-${row.id}`;
+          semanticScores.set(key, row.similarity);
+        });
+
+        console.log(`✅ Generated semantic scores for ${similarities.rows.length} activities`);
+      }
+    } catch (err) {
+      console.warn('⚠️  Semantic scoring unavailable:', err.message);
+      // Continue without semantic scoring
+    }
+
+    // Score each activity (hybrid approach)
     const scored = activities.rows
       .filter(activity => {
         // Time constraint check
@@ -115,42 +150,70 @@ export default async function handler(req, res) {
       })
       .map(activity => {
         let score = 0;
+        let breakdown = {}; // For debugging
 
-        // Vibe matching (60 points total)
-        // Quiet/Lively atmosphere (30 points)
+        // Vibe matching (40% weight = 40 points)
+        // Quiet/Lively atmosphere (20 points)
         const quietMatch = 1 - Math.abs((activity.vibe_quiet || 0.5) - quietToLively);
-        score += quietMatch * 30;
+        const quietScore = quietMatch * 20;
+        score += quietScore;
+        breakdown.quietScore = Math.round(quietScore * 10) / 10;
 
-        // Relaxing/Active energy (30 points)
+        // Relaxing/Active energy (20 points)
         const activeMatch = 1 - Math.abs((activity.vibe_active || 0.5) - activeToRelaxing);
-        score += activeMatch * 30;
+        const activeScore = activeMatch * 20;
+        score += activeScore;
+        breakdown.activeScore = Math.round(activeScore * 10) / 10;
 
-        // Time of day bonus (20 points)
-        score += calculateTimeBonus(activity, currentTime);
-
-        // Tag matching (up to 40 points)
+        // Tag matching (30% weight = 30 points)
+        let tagScore = 0;
         if (tags.length > 0 && activity.tags) {
           const activityTags = Array.isArray(activity.tags) ? activity.tags : [];
           const matchingTags = tags.filter(tag => activityTags.includes(tag));
-          const tagBonus = (matchingTags.length / tags.length) * 40;
-          score += tagBonus;
+          tagScore = (matchingTags.length / tags.length) * 30;
+          score += tagScore;
         }
+        breakdown.tagScore = Math.round(tagScore * 10) / 10;
+
+        // Semantic similarity (30% weight = 30 points)
+        // Only applies if embeddings are available
+        let semanticScore = 0;
+        if (semanticScores.size > 0) {
+          const key = `${activity.type}-${activity.id}`;
+          const similarity = semanticScores.get(key);
+          if (similarity !== undefined) {
+            semanticScore = similarity * 30; // 0-1 similarity -> 0-30 points
+            score += semanticScore;
+          }
+        }
+        breakdown.semanticScore = Math.round(semanticScore * 10) / 10;
+
+        // Time of day bonus (15 points)
+        const timeBonus = calculateTimeBonus(activity, currentTime);
+        score += timeBonus;
+        breakdown.timeBonus = timeBonus;
 
         // Time availability bonus (comfortable fit, up to 10 points)
+        let availabilityScore = 0;
         if (activity.walk_minutes_from_center) {
           const totalTime = activity.walk_minutes_from_center * 2 + 30;
           const timeRatio = totalTime / timeAvailable;
           if (timeRatio <= 0.8) {
-            score += (1 - timeRatio) * 10;
+            availabilityScore = (1 - timeRatio) * 10;
+            score += availabilityScore;
           }
         }
+        breakdown.availabilityScore = Math.round(availabilityScore * 10) / 10;
 
-        // Randomness for variety (10 points)
-        score += Math.random() * 10;
+        // Randomness for variety (5 points)
+        const randomBonus = Math.random() * 5;
+        score += randomBonus;
+        breakdown.randomBonus = Math.round(randomBonus * 10) / 10;
 
         return {
           ...activity,
           score: Math.round(score * 10) / 10,
+          scoreBreakdown: breakdown, // Include for debugging
         };
       })
       .filter(activity => activity.score > 0)

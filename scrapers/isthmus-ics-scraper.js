@@ -8,6 +8,7 @@
 import https from 'https';
 import pg from 'pg';
 import dotenv from 'dotenv';
+import { generateActivityEmbedding, hasEmbedding } from '../api/_lib/embeddings.js';
 
 dotenv.config();
 
@@ -219,9 +220,31 @@ async function saveToDatabase(events) {
         const sourceId = event.uid || event.url || `isthmus-${slug}-${event.startTime.toISOString()}`;
 
         const existing = await client.query(
-          'SELECT id FROM events WHERE source = $1 AND source_id = $2',
+          'SELECT id, embedding, title, description FROM events WHERE source = $1 AND source_id = $2',
           ['isthmus', sourceId]
         );
+
+        // Determine if we need to generate embedding
+        let embedding = null;
+        const needsEmbedding = existing.rows.length === 0 || // New event
+                               !existing.rows[0].embedding || // No existing embedding
+                               existing.rows[0].title !== event.title || // Title changed
+                               existing.rows[0].description !== event.description; // Description changed
+
+        if (needsEmbedding) {
+          const activityData = {
+            title: event.title,
+            description: event.description,
+            tags: allTags,
+            vibe_quiet: vibe.quiet,
+            vibe_inside: vibe.inside,
+            vibe_active: vibe.active
+          };
+          embedding = await generateActivityEmbedding(activityData);
+        } else {
+          // Reuse existing embedding
+          embedding = existing.rows[0].embedding;
+        }
 
         if (existing.rows.length === 0) {
           // Insert new event
@@ -229,15 +252,17 @@ async function saveToDatabase(events) {
             INSERT INTO events (
               city_id, title, description, slug, start_time, end_time,
               vibe_quiet, vibe_inside, vibe_active, tags, venue_name, venue_address,
-              source_url, source, source_id, is_active
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+              source_url, source, source_id, embedding, is_active
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
           `, [
             cityId, event.title, event.description, slug,
             event.startTime, event.endTime,
             vibe.quiet, vibe.inside, vibe.active, allTags,
             null, event.location, // venue name/address combined in location
             event.url,
-            'isthmus', sourceId, true
+            'isthmus', sourceId,
+            embedding ? JSON.stringify(embedding) : null, // Store embedding as JSON
+            true
           ]);
 
           inserted++;
@@ -247,13 +272,14 @@ async function saveToDatabase(events) {
             UPDATE events SET
               title = $1, description = $2, start_time = $3, end_time = $4,
               vibe_quiet = $5, vibe_inside = $6, vibe_active = $7, tags = $8,
-              venue_address = $9, source_url = $10,
+              venue_address = $9, source_url = $10, embedding = $11,
               updated_at = NOW()
-            WHERE source = $11 AND source_id = $12
+            WHERE source = $12 AND source_id = $13
           `, [
             event.title, event.description, event.startTime, event.endTime,
             vibe.quiet, vibe.inside, vibe.active, allTags,
             event.location, event.url,
+            embedding ? JSON.stringify(embedding) : null,
             'isthmus', sourceId
           ]);
 
