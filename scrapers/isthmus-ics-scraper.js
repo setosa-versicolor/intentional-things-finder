@@ -18,44 +18,72 @@ const pool = new Pool({
 
 const ICS_URL = 'https://isthmus.com/search/event/calendar-of-events/calendar.ics';
 
-// Category mapping from event descriptions/summaries
-const inferCategories = (summary, description) => {
+// Tag mapping from event descriptions/summaries
+const inferTags = (summary, description) => {
   const text = `${summary} ${description}`.toLowerCase();
   const tags = [];
 
-  if (text.match(/music|concert|band|jazz|rock|dj/)) tags.push('music', 'live-music');
-  if (text.match(/comedy|comedian|standup|improv/)) tags.push('comedy', 'entertainment');
-  if (text.match(/art|exhibit|gallery|painting|sculpture/)) tags.push('art', 'culture');
-  if (text.match(/theater|theatre|play|performance|drama/)) tags.push('theater', 'performing-arts');
-  if (text.match(/film|movie|cinema|screening/)) tags.push('film', 'movies');
-  if (text.match(/food|drink|beer|wine|restaurant|dining/)) tags.push('food', 'drink');
-  if (text.match(/kids|family|children/)) tags.push('family', 'kids');
-  if (text.match(/outdoor|nature|park|hiking|garden/)) tags.push('outdoors', 'nature');
-  if (text.match(/dance|dancing|ballet/)) tags.push('music', 'social', 'nightlife');
-  if (text.match(/lecture|talk|seminar|discussion/)) tags.push('education', 'lectures');
-  if (text.match(/sports|fitness|yoga|gym|exercise/)) tags.push('sports', 'fitness');
+  // New tag system
+  if (text.match(/food|dining|restaurant|meal|cuisine|chef/)) tags.push('food-focused');
+  if (text.match(/kids|family|children|youth/)) tags.push('kid-friendly');
+  if (text.match(/date|romantic|couples|wine|intimate/)) tags.push('date-night');
+  if (text.match(/art|creative|craft|workshop|painting|sculpture/)) tags.push('creative');
+  if (text.match(/lecture|learn|workshop|education|seminar|class/)) tags.push('educational');
+  if (text.match(/nature|outdoor|park|garden|hiking|trail/)) tags.push('nature');
+  if (text.match(/social|community|gathering|meet|group/)) tags.push('friend-hangout');
+  if (text.match(/unusual|unique|quirky|weird|different/)) tags.push('unusual-options');
+  if (text.match(/free admission|no cost|donation/i)) tags.push('free');
+  if (text.match(/music|concert|band|jazz|rock|dj/)) tags.push('friend-hangout');
+  if (text.match(/comedy|comedian|standup|improv/)) tags.push('friend-hangout', 'date-night');
 
-  return tags.length > 0 ? tags : ['general'];
+  // Legacy tags (for internal categorization)
+  const legacyTags = [];
+  if (text.match(/music|concert|band|jazz|rock|dj/)) legacyTags.push('music', 'live-music');
+  if (text.match(/comedy|comedian|standup|improv/)) legacyTags.push('comedy', 'entertainment');
+  if (text.match(/art|exhibit|gallery|painting|sculpture/)) legacyTags.push('art', 'culture');
+  if (text.match(/theater|theatre|play|performance|drama/)) legacyTags.push('theater', 'performing-arts');
+  if (text.match(/film|movie|cinema|screening/)) legacyTags.push('film', 'movies');
+  if (text.match(/food|drink|beer|wine|restaurant|dining/)) legacyTags.push('food', 'drink');
+  if (text.match(/kids|family|children/)) legacyTags.push('family', 'kids');
+  if (text.match(/outdoor|nature|park|hiking|garden/)) legacyTags.push('outdoors', 'nature');
+  if (text.match(/dance|dancing|ballet/)) legacyTags.push('music', 'social', 'nightlife');
+  if (text.match(/lecture|talk|seminar|discussion/)) legacyTags.push('education', 'lectures');
+  if (text.match(/sports|fitness|yoga|gym|exercise/)) legacyTags.push('sports', 'fitness');
+
+  return {
+    userTags: tags.length > 0 ? tags : [],
+    legacyTags: legacyTags.length > 0 ? legacyTags : ['general']
+  };
 };
 
-// Infer vibe from categories
-const inferVibe = (tags) => {
+// Infer vibe from legacy categories
+const inferVibe = (legacyTags) => {
   let quietScore = 0.5;
   let insideScore = 0.5;
+  let activeScore = 0.5;
 
-  if (tags.some(t => ['music', 'nightlife', 'social', 'sports'].includes(t))) {
+  if (legacyTags.some(t => ['music', 'nightlife', 'social', 'sports'].includes(t))) {
     quietScore = 0.2; // loud/social
-  } else if (tags.some(t => ['art', 'lectures', 'film'].includes(t))) {
+    activeScore = 0.7; // active
+  } else if (legacyTags.some(t => ['art', 'lectures', 'film'].includes(t))) {
     quietScore = 0.7; // quiet
+    activeScore = 0.3; // relaxing
   }
 
-  if (tags.some(t => ['outdoors', 'nature'].includes(t))) {
+  if (legacyTags.some(t => ['outdoors', 'nature', 'sports'].includes(t))) {
     insideScore = 0.2; // outside
-  } else if (tags.some(t => ['theater', 'film', 'lectures', 'art'].includes(t))) {
+    activeScore = 0.6; // moderately active
+  } else if (legacyTags.some(t => ['theater', 'film', 'lectures', 'art'].includes(t))) {
     insideScore = 0.9; // inside
+    activeScore = 0.3; // relaxing
   }
 
-  return { quiet: quietScore, inside: insideScore };
+  // Yoga and meditation are relaxing
+  if (legacyTags.some(t => t.match(/yoga|meditation|spa/))) {
+    activeScore = 0.1;
+  }
+
+  return { quiet: quietScore, inside: insideScore, active: activeScore };
 };
 
 // Parse ICS format
@@ -180,9 +208,12 @@ async function saveToDatabase(events) {
           continue;
         }
 
-        const tags = inferCategories(event.title, event.description || '');
-        const vibe = inferVibe(tags);
+        const { userTags, legacyTags } = inferTags(event.title, event.description || '');
+        const vibe = inferVibe(legacyTags);
         const slug = slugify(event.title);
+
+        // Combine user-facing and legacy tags
+        const allTags = [...new Set([...userTags, ...legacyTags])];
 
         // Check if event already exists (by URL or UID)
         const sourceId = event.uid || event.url || `isthmus-${slug}-${event.startTime.toISOString()}`;
@@ -197,13 +228,13 @@ async function saveToDatabase(events) {
           await client.query(`
             INSERT INTO events (
               city_id, title, description, slug, start_time, end_time,
-              vibe_quiet, vibe_inside, tags, venue_name, venue_address,
+              vibe_quiet, vibe_inside, vibe_active, tags, venue_name, venue_address,
               source_url, source, source_id, is_active
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
           `, [
             cityId, event.title, event.description, slug,
             event.startTime, event.endTime,
-            vibe.quiet, vibe.inside, tags,
+            vibe.quiet, vibe.inside, vibe.active, allTags,
             null, event.location, // venue name/address combined in location
             event.url,
             'isthmus', sourceId, true
@@ -215,13 +246,13 @@ async function saveToDatabase(events) {
           await client.query(`
             UPDATE events SET
               title = $1, description = $2, start_time = $3, end_time = $4,
-              vibe_quiet = $5, vibe_inside = $6, tags = $7,
-              venue_address = $8, source_url = $9,
+              vibe_quiet = $5, vibe_inside = $6, vibe_active = $7, tags = $8,
+              venue_address = $9, source_url = $10,
               updated_at = NOW()
-            WHERE source = $10 AND source_id = $11
+            WHERE source = $11 AND source_id = $12
           `, [
             event.title, event.description, event.startTime, event.endTime,
-            vibe.quiet, vibe.inside, tags,
+            vibe.quiet, vibe.inside, vibe.active, allTags,
             event.location, event.url,
             'isthmus', sourceId
           ]);

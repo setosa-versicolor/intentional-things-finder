@@ -20,20 +20,24 @@ export default async function handler(req, res) {
   try {
     const {
       timeAvailable,
-      quietSocial,
-      insideOutside,
-      kidFriendly,
-      lowEnergy,
+      quietToLively,
+      activeToRelaxing,
+      location,
+      tags = [],
+      date,
       city = 'madison',
       limit = 3,
     } = req.body;
 
     // Validate inputs
-    if (timeAvailable === undefined || quietSocial === undefined || insideOutside === undefined) {
+    if (timeAvailable === undefined || quietToLively === undefined || activeToRelaxing === undefined) {
       return res.status(400).json({
-        error: 'Missing required fields: timeAvailable, quietSocial, insideOutside',
+        error: 'Missing required fields: timeAvailable, quietToLively, activeToRelaxing',
       });
     }
+
+    // Parse date filter
+    const requestedDate = date ? new Date(date) : new Date();
 
     const pool = getPool();
 
@@ -51,8 +55,8 @@ export default async function handler(req, res) {
     const currentTime = getTimeOfDay();
     const currentDay = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
 
-    // Build SQL query with filters
-    const query = `
+    // Build SQL query with location filter
+    let query = `
       SELECT
         type,
         id,
@@ -62,6 +66,7 @@ export default async function handler(req, res) {
         lng,
         vibe_quiet,
         vibe_inside,
+        vibe_active,
         description,
         nudge,
         kid_friendly,
@@ -77,30 +82,61 @@ export default async function handler(req, res) {
       WHERE
         city_id = $1
         AND is_active = TRUE
-        AND ($2 = FALSE OR kid_friendly = TRUE)
     `;
 
-    const params = [cityId, kidFriendly];
+    const params = [cityId];
+
+    // Add location filter if not "either"
+    if (location === 'inside') {
+      query += ' AND vibe_inside >= 0.6';
+    } else if (location === 'outside') {
+      query += ' AND vibe_inside <= 0.4';
+    }
+
     const activities = await pool.query(query, params);
 
     // Score each activity
     const scored = activities.rows
-      .filter(activity => checkTimeConstraint(activity, { timeAvailable }))
+      .filter(activity => {
+        // Time constraint check
+        if (!checkTimeConstraint(activity, { timeAvailable })) {
+          return false;
+        }
+
+        // Date/time filter for events
+        if (activity.type === 'event' && activity.start_time) {
+          const eventStart = new Date(activity.start_time);
+          if (eventStart < requestedDate) {
+            return false;
+          }
+        }
+
+        return true;
+      })
       .map(activity => {
         let score = 0;
 
-        // Vibe matching (60 points)
-        score += calculateVibeScore(activity, { quietSocial, insideOutside });
+        // Vibe matching (60 points total)
+        // Quiet/Lively atmosphere (30 points)
+        const quietMatch = 1 - Math.abs((activity.vibe_quiet || 0.5) - quietToLively);
+        score += quietMatch * 30;
+
+        // Relaxing/Active energy (30 points)
+        const activeMatch = 1 - Math.abs((activity.vibe_active || 0.5) - activeToRelaxing);
+        score += activeMatch * 30;
 
         // Time of day bonus (20 points)
         score += calculateTimeBonus(activity, currentTime);
 
-        // Low energy penalty
-        if (lowEnergy && !activity.low_energy) {
-          score -= 15;
+        // Tag matching (up to 40 points)
+        if (tags.length > 0 && activity.tags) {
+          const activityTags = Array.isArray(activity.tags) ? activity.tags : [];
+          const matchingTags = tags.filter(tag => activityTags.includes(tag));
+          const tagBonus = (matchingTags.length / tags.length) * 40;
+          score += tagBonus;
         }
 
-        // Time availability bonus (comfortable fit)
+        // Time availability bonus (comfortable fit, up to 10 points)
         if (activity.walk_minutes_from_center) {
           const totalTime = activity.walk_minutes_from_center * 2 + 30;
           const timeRatio = totalTime / timeAvailable;
@@ -121,7 +157,7 @@ export default async function handler(req, res) {
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
 
-    // Log recommendation
+    // Log recommendation with new format
     await pool.query(`
       INSERT INTO recommendations (
         city_id,
@@ -138,18 +174,27 @@ export default async function handler(req, res) {
     `, [
       cityId,
       timeAvailable,
-      quietSocial,
-      insideOutside,
-      kidFriendly,
-      lowEnergy,
+      quietToLively, // Map to quiet_social for now (schema compatibility)
+      activeToRelaxing, // Map to inside_outside for now (will update schema later)
+      tags.includes('kid-friendly'), // Map to kid_friendly boolean
+      tags.includes('relaxing') || activeToRelaxing < 0.3, // Map to low_energy
       currentTime,
       currentDay,
-      JSON.stringify(scored.map((a, i) => ({
-        type: a.type,
-        id: a.id,
-        score: a.score,
-        rank: i + 1,
-      }))),
+      JSON.stringify({
+        results: scored.map((a, i) => ({
+          type: a.type,
+          id: a.id,
+          score: a.score,
+          rank: i + 1,
+        })),
+        preferences: {
+          quietToLively,
+          activeToRelaxing,
+          location,
+          tags,
+          date: requestedDate.toISOString(),
+        }
+      }),
     ]);
 
     res.status(200).json({
