@@ -10,6 +10,8 @@ import https from 'https';
 import pg from 'pg';
 import dotenv from 'dotenv';
 
+// Load .env.local first (Vercel env vars), then fall back to .env
+dotenv.config({ path: '.env.local' });
 dotenv.config();
 
 const { Pool } = pg;

@@ -42,3 +42,5 @@ check-*.js
 view-*.js
 run-*.js
 *-page.html
+.vercel
+.env*.local
