@@ -234,27 +234,155 @@ const TimeSelector = ({ value, onChange }) => {
   );
 };
 
-const Constraints = ({ values, onChange }) => {
-  const toggle = (key) => {
-    onChange({ ...values, [key]: !values[key] });
-  };
-  
+const LocationSelector = ({ value, onChange }) => {
+  const options = [
+    { value: 'inside', label: 'Inside' },
+    { value: 'outside', label: 'Outside' },
+    { value: 'either', label: 'Either' }
+  ];
+
   return (
-    <div className="constraints">
-      <label className="selector-label">Constraints</label>
-      <div className="constraint-options">
+    <div className="location-selector">
+      <label className="selector-label">Location</label>
+      <div className="radio-options">
+        {options.map(opt => (
+          <button
+            key={opt.value}
+            className={`radio-option ${value === opt.value ? 'active' : ''}`}
+            onClick={() => onChange(opt.value)}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const TagSelector = ({ selectedTags, onChange }) => {
+  const tags = [
+    'dog-friendly',
+    'food-focused',
+    'kid-friendly',
+    'date-night',
+    'solo-friendly',
+    'creative',
+    'educational',
+    'nature',
+    'friend-hangout',
+    'unusual-options',
+    'outside-my-norm',
+    'free',
+    'cheap-eats'
+  ];
+
+  const toggleTag = (tag) => {
+    if (selectedTags.includes(tag)) {
+      onChange(selectedTags.filter(t => t !== tag));
+    } else {
+      onChange([...selectedTags, tag]);
+    }
+  };
+
+  return (
+    <div className="tag-selector">
+      <label className="selector-label">Tags (select any that apply)</label>
+      <div className="tag-options">
+        {tags.map(tag => (
+          <button
+            key={tag}
+            className={`tag-option ${selectedTags.includes(tag) ? 'active' : ''}`}
+            onClick={() => toggleTag(tag)}
+          >
+            {tag}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const DateTimeSelector = ({ value, onChange }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  const formatDateTime = (date) => {
+    if (!date) return 'Now';
+    const d = new Date(date);
+    const now = new Date();
+
+    // Check if it's today
+    if (d.toDateString() === now.toDateString()) {
+      return 'Now';
+    }
+
+    // Format as "Mon, Jan 15, 3:00 PM"
+    return d.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    });
+  };
+
+  const handleDateChange = (e) => {
+    const selectedDate = new Date(e.target.value);
+    const now = new Date();
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + 14); // 2 weeks from now
+
+    if (selectedDate < now) {
+      onChange(null); // Reset to "Now"
+    } else if (selectedDate > maxDate) {
+      onChange(maxDate.toISOString());
+    } else {
+      onChange(selectedDate.toISOString());
+    }
+  };
+
+  const getMaxDate = () => {
+    const max = new Date();
+    max.setDate(max.getDate() + 14);
+    return max.toISOString().slice(0, 16);
+  };
+
+  const getMinDate = () => {
+    return new Date().toISOString().slice(0, 16);
+  };
+
+  return (
+    <div className="datetime-selector">
+      <label className="selector-label">When?</label>
+      <div className="datetime-container">
         <button
-          className={`constraint-option ${values.kidFriendly ? 'active' : ''}`}
-          onClick={() => toggle('kidFriendly')}
+          className={`datetime-display ${!value ? 'active' : ''}`}
+          onClick={() => setExpanded(!expanded)}
         >
-          kid-friendly
+          {formatDateTime(value)}
+          <span className="datetime-arrow">{expanded ? '▲' : '▼'}</span>
         </button>
-        <button
-          className={`constraint-option ${values.lowEnergy ? 'active' : ''}`}
-          onClick={() => toggle('lowEnergy')}
-        >
-          low energy
-        </button>
+
+        {expanded && (
+          <div className="datetime-picker">
+            <input
+              type="datetime-local"
+              value={value ? new Date(value).toISOString().slice(0, 16) : getMinDate()}
+              onChange={handleDateChange}
+              min={getMinDate()}
+              max={getMaxDate()}
+              className="datetime-input"
+            />
+            <button
+              className="datetime-reset"
+              onClick={() => {
+                onChange(null);
+                setExpanded(false);
+              }}
+            >
+              Reset to Now
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -296,57 +424,62 @@ const RecommendationCard = ({ place, index }) => {
 
 const InputScreen = ({ onSubmit }) => {
   const [timeAvailable, setTimeAvailable] = useState(90);
-  const [quietSocial, setQuietSocial] = useState(0.5);
-  const [insideOutside, setInsideOutside] = useState(0.5);
-  const [constraints, setConstraints] = useState({
-    kidFriendly: false,
-    lowEnergy: false
-  });
-  
+  const [quietToLively, setQuietToLively] = useState(0.5);
+  const [activeToRelaxing, setActiveToRelaxing] = useState(0.5);
+  const [location, setLocation] = useState('either');
+  const [selectedTags, setSelectedTags] = useState([]);
+  const [dateTime, setDateTime] = useState(null); // null = "Now"
+
   const handleSubmit = () => {
     onSubmit({
       timeAvailable,
-      quietSocial,
-      insideOutside,
-      ...constraints
+      quietToLively,
+      activeToRelaxing,
+      location,
+      tags: selectedTags,
+      date: dateTime || new Date().toISOString() // Send current time if "Now"
     });
   };
-  
+
   return (
     <div className="input-screen">
       <header className="app-header">
-        <h1 className="app-title">Intentional Things</h1>
-        <p className="app-subtitle">Madison</p>
+        <h1 className="app-title">Discover Madison</h1>
+        <p className="app-subtitle">Find your next intentional experience</p>
       </header>
-      
+
       <div className="input-form">
         <TimeSelector value={timeAvailable} onChange={setTimeAvailable} />
-        
+
         <div className="vibes-section">
           <VibeSlider
             label="Atmosphere"
             leftLabel="quiet"
-            rightLabel="social"
-            value={quietSocial}
-            onChange={setQuietSocial}
+            rightLabel="lively"
+            value={quietToLively}
+            onChange={setQuietToLively}
           />
-          
+
           <VibeSlider
-            label="Setting"
-            leftLabel="inside"
-            rightLabel="outside"
-            value={insideOutside}
-            onChange={setInsideOutside}
+            label="Energy"
+            leftLabel="relaxing"
+            rightLabel="active"
+            value={activeToRelaxing}
+            onChange={setActiveToRelaxing}
           />
         </div>
-        
-        <Constraints values={constraints} onChange={setConstraints} />
-        
+
+        <LocationSelector value={location} onChange={setLocation} />
+
+        <TagSelector selectedTags={selectedTags} onChange={setSelectedTags} />
+
+        <DateTimeSelector value={dateTime} onChange={setDateTime} />
+
         <button className="find-button" onClick={handleSubmit}>
           Find something good
         </button>
       </div>
-      
+
       <footer className="input-footer">
         <p>Three suggestions, max. No scrolling.</p>
       </footer>
