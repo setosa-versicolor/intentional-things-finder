@@ -3,7 +3,10 @@
  * Connects React frontend to the recommendation API
  */
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// In production (Vercel), use relative URLs (same domain as frontend)
+// In development, use localhost:3001
+const API_URL = import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD ? '' : 'http://localhost:3001');
 
 /**
  * Get recommendations from the API
