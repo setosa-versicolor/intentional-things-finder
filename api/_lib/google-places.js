@@ -104,7 +104,7 @@ export async function getPlaceDetails(placeId) {
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': apiKey,
-        'X-Goog-FieldMask': 'displayName,formattedAddress,internationalPhoneNumber,websiteUri,regularOpeningHours,rating,userRatingCount,location,priceLevel'
+        'X-Goog-FieldMask': 'displayName,formattedAddress,internationalPhoneNumber,websiteUri,regularOpeningHours,rating,userRatingCount,location,priceLevel,businessStatus'
       }
     });
 
@@ -130,7 +130,8 @@ export async function getPlaceDetails(placeId) {
             lng: data.location.longitude
           }
         } : null,
-        price_level: data.priceLevel
+        price_level: data.priceLevel,
+        business_status: data.businessStatus || 'OPERATIONAL'
       };
     } else {
       console.error(`   Could not fetch place details`);

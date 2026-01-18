@@ -150,8 +150,9 @@ async function syncGooglePlaces() {
                google_user_ratings_total = $6,
                lat = COALESCE(lat, $7),
                lng = COALESCE(lng, $8),
+               business_status = $9,
                last_synced_at = NOW()
-           WHERE id = $9`,
+           WHERE id = $10`,
           [
             placeId,
             JSON.stringify(hours),
@@ -161,12 +162,20 @@ async function syncGooglePlaces() {
             details.user_ratings_total || null,
             details.geometry?.location?.lat || null,
             details.geometry?.location?.lng || null,
+            details.business_status || 'OPERATIONAL',
             place.id
           ]
         );
 
         if (details.rating) {
           console.log(`   ✓ Rating: ${details.rating} (${details.user_ratings_total} reviews)`);
+        }
+
+        // Log if permanently closed
+        if (details.business_status === 'CLOSED_PERMANENTLY') {
+          console.log(`   ⚠️  PERMANENTLY CLOSED`);
+        } else if (details.business_status === 'CLOSED_TEMPORARILY') {
+          console.log(`   ⚠️  Temporarily closed`);
         }
 
         updated++;

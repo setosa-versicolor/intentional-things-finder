@@ -107,3 +107,90 @@ export function getTodaysHours(hours) {
 
   return 'Hours not available';
 }
+
+/**
+ * Check if hours appear to be seasonal or temporary
+ * @param {Object} hours - Hours object
+ * @returns {boolean} - True if hours may be seasonal
+ */
+export function hasSeasonalHours(hours) {
+  if (!hours || !hours.weekday_text) {
+    return false;
+  }
+
+  // Look for seasonal keywords in the hours text
+  const seasonalKeywords = [
+    'seasonal',
+    'weather permitting',
+    'spring',
+    'summer',
+    'fall',
+    'winter',
+    'memorial day',
+    'labor day',
+    'may through',
+    'april through',
+    'closed for season'
+  ];
+
+  const hoursText = hours.weekday_text.join(' ').toLowerCase();
+
+  return seasonalKeywords.some(keyword => hoursText.includes(keyword));
+}
+
+/**
+ * Check if a place closes early (before 6 PM) consistently
+ * Useful for identifying daylight-dependent places like parks
+ * @param {Object} hours - Hours object
+ * @returns {boolean} - True if place typically closes early
+ */
+export function closesEarly(hours) {
+  if (!hours || !hours.periods || hours.periods.length === 0) {
+    return false;
+  }
+
+  if (hours.always_open) {
+    return false;
+  }
+
+  // Check if most closing times are before 1800 (6 PM)
+  const closeTimes = hours.periods
+    .filter(p => p.close && p.close.time)
+    .map(p => parseInt(p.close.time));
+
+  if (closeTimes.length === 0) {
+    return false;
+  }
+
+  const earlyCloses = closeTimes.filter(time => time < 1800);
+
+  // If more than 50% of days close before 6 PM, consider it "closes early"
+  return earlyCloses.length > closeTimes.length / 2;
+}
+
+/**
+ * Get sunset time for Madison, WI (approximate)
+ * @param {Date} date - Date to check
+ * @returns {number} - Sunset time in HHMM format
+ */
+export function getSunsetTime(date = new Date()) {
+  const month = date.getMonth(); // 0-11
+
+  // Approximate sunset times for Madison, WI throughout the year
+  const sunsetTimes = {
+    0: 1630,  // January
+    1: 1700,  // February
+    2: 1800,  // March
+    3: 1900,  // April
+    4: 1945,  // May
+    5: 2015,  // June
+    6: 2015,  // July
+    7: 1945,  // August
+    8: 1845,  // September
+    9: 1745,  // October
+    10: 1645, // November
+    11: 1615  // December
+  };
+
+  return sunsetTimes[month];
+}

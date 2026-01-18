@@ -83,11 +83,13 @@ export default async function handler(req, res) {
         google_place_id,
         google_rating,
         google_user_ratings_total,
-        hours
+        hours,
+        business_status
       FROM activities
       WHERE
         city_id = $1
         AND is_active = TRUE
+        AND (business_status IS NULL OR business_status = 'OPERATIONAL')
     `;
 
     const params = [cityId];
