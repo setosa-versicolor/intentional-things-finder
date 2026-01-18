@@ -1,0 +1,185 @@
+{
+  "verified_date": "2026-01-17",
+  "places": [
+    {
+      "name": "Bradbury's Coffee - Capitol Square",
+      "address": "127 N Hamilton St, Madison, WI 53703",
+      "hours": {
+        "monday": "7:00 AM - 5:00 PM",
+        "tuesday": "7:00 AM - 5:00 PM",
+        "wednesday": "7:00 AM - 5:00 PM",
+        "thursday": "7:00 AM - 5:00 PM",
+        "friday": "7:00 AM - 5:00 PM",
+        "saturday": "7:00 AM - 5:00 PM",
+        "sunday": "7:00 AM - 5:00 PM"
+      },
+      "notes": "Open 7 days a week with consistent hours",
+      "source": "https://www.bradburyscoffee.com/"
+    },
+    {
+      "name": "Colectivo Coffee - Monroe Street",
+      "address": "2530 Monroe St, Madison, WI 53711",
+      "hours": {
+        "monday": "6:30 AM - 6:00 PM",
+        "tuesday": "6:30 AM - 6:00 PM",
+        "wednesday": "6:30 AM - 6:00 PM",
+        "thursday": "6:30 AM - 6:00 PM",
+        "friday": "6:30 AM - 6:00 PM",
+        "saturday": "6:30 AM - 6:00 PM",
+        "sunday": "6:30 AM - 6:00 PM"
+      },
+      "notes": "Same hours daily",
+      "source": "https://colectivo.com/pages/monroe-street"
+    },
+    {
+      "name": "Johnson Public House (JPH) - Tenney-Lapham",
+      "address": "908 E Johnson St, Madison, WI 53703",
+      "hours": {
+        "monday": "7:00 AM - 5:00 PM",
+        "tuesday": "7:00 AM - 5:00 PM",
+        "wednesday": "7:00 AM - 5:00 PM",
+        "thursday": "7:00 AM - 5:00 PM",
+        "friday": "7:00 AM - 5:00 PM",
+        "saturday": "7:00 AM - 5:00 PM",
+        "sunday": "7:00 AM - 5:00 PM"
+      },
+      "notes": "Updated January 2026, open every day",
+      "source": "https://www.jph4ever.com/"
+    },
+    {
+      "name": "EVP Coffee - East (E Washington Ave)",
+      "address": "1250 E Washington Ave, Madison, WI 53703",
+      "hours": {
+        "monday": "7:00 AM - 1:00 PM",
+        "tuesday": "7:00 AM - 1:00 PM",
+        "wednesday": "7:00 AM - 1:00 PM",
+        "thursday": "7:00 AM - 1:00 PM",
+        "friday": "7:00 AM - 1:00 PM",
+        "saturday": "8:00 AM - 2:00 PM",
+        "sunday": "Closed"
+      },
+      "notes": "Most recent source (January 2026) shows Sunday closed. Limited weekday hours.",
+      "source": "https://roastersmap.com/coffee-roasters-wisconsin/madison/evp-coffee/"
+    },
+    {
+      "name": "EVP Coffee - Sequoya (Midvale Blvd)",
+      "address": "555 S Midvale Blvd, Madison, WI 53711",
+      "hours": {
+        "monday": "6:00 AM - 6:00 PM",
+        "tuesday": "6:00 AM - 6:00 PM",
+        "wednesday": "6:00 AM - 6:00 PM",
+        "thursday": "6:00 AM - 6:00 PM",
+        "friday": "6:00 AM - 6:00 PM",
+        "saturday": "7:00 AM - 5:00 PM",
+        "sunday": "7:00 AM - 3:00 PM"
+      },
+      "notes": "Different hours than East location",
+      "source": "https://isthmus.com/locations/evp-coffee-sequoya/"
+    },
+    {
+      "name": "Grace Coffee Co. - E. Washington",
+      "address": "1216 E Washington Ave, Madison, WI 53703",
+      "hours": {
+        "monday": "7:00 AM - 3:00 PM",
+        "tuesday": "7:00 AM - 3:00 PM",
+        "wednesday": "7:00 AM - 3:00 PM",
+        "thursday": "7:00 AM - 3:00 PM",
+        "friday": "7:00 AM - 3:00 PM",
+        "saturday": "8:00 AM - 3:00 PM",
+        "sunday": "8:00 AM - 3:00 PM"
+      },
+      "notes": "Kitchen closes at 2:30 PM",
+      "source": "https://www.gracecoffeewi.com/contact-1"
+    },
+    {
+      "name": "Grace Coffee Co. - Peloton (Park Street)",
+      "address": "1008 S Park St, Madison, WI 53715",
+      "hours": {
+        "monday": "7:00 AM - 3:00 PM",
+        "tuesday": "7:00 AM - 3:00 PM",
+        "wednesday": "7:00 AM - 3:00 PM",
+        "thursday": "7:00 AM - 3:00 PM",
+        "friday": "7:00 AM - 3:00 PM",
+        "saturday": "8:00 AM - 3:00 PM",
+        "sunday": "8:00 AM - 3:00 PM"
+      },
+      "notes": "Kitchen closes at 2:00 PM",
+      "source": "https://www.gracecoffeewi.com/contact-1"
+    },
+    {
+      "name": "Ancora Coffee - Capitol Square",
+      "address": "107 King St, Madison, WI 53703",
+      "hours": {
+        "monday": "6:30 AM - 1:00 PM",
+        "tuesday": "6:30 AM - 3:00 PM",
+        "wednesday": "6:30 AM - 3:00 PM",
+        "thursday": "6:30 AM - 3:00 PM",
+        "friday": "6:30 AM - 3:00 PM",
+        "saturday": "7:00 AM - 3:00 PM",
+        "sunday": "6:30 AM - 3:00 PM"
+      },
+      "notes": "Note: Monday closes earlier at 1:00 PM",
+      "source": "https://www.yelp.com/biz/ancora-cafe-bakery-madison-4"
+    },
+    {
+      "name": "Fair Trade Coffee House - Near campus",
+      "address": "418 State St, Madison, WI 53703",
+      "hours": {
+        "monday": "7:30 AM - 6:00 PM",
+        "tuesday": "7:30 AM - 6:00 PM",
+        "wednesday": "7:30 AM - 6:00 PM",
+        "thursday": "7:30 AM - 6:00 PM",
+        "friday": "7:30 AM - 6:00 PM",
+        "saturday": "8:00 AM - 6:00 PM",
+        "sunday": "8:00 AM - 6:00 PM"
+      },
+      "notes": "Located just off Capitol Square on State Street",
+      "source": "https://www.fairtradecoffeehouse.com/"
+    },
+    {
+      "name": "Cargo Coffee - East (750 E. Washington Ave)",
+      "address": "750 E Washington Ave, Madison, WI 53703",
+      "hours": {
+        "monday": "6:00 AM - 5:00 PM",
+        "tuesday": "6:00 AM - 5:00 PM",
+        "wednesday": "6:00 AM - 5:00 PM",
+        "thursday": "6:00 AM - 5:00 PM",
+        "friday": "6:00 AM - 9:00 PM",
+        "saturday": "7:00 AM - 9:00 PM",
+        "sunday": "7:00 AM - 7:00 PM"
+      },
+      "notes": "Extended hours Friday and Saturday until 9:00 PM",
+      "source": "https://www.yelp.com/biz/cargo-coffee-east-madison-2"
+    },
+    {
+      "name": "Cafe Domestique - East side",
+      "address": "1408 Williamson St, Madison, WI 53703",
+      "hours": {
+        "monday": "7:00 AM - 3:00 PM",
+        "tuesday": "7:00 AM - 3:00 PM",
+        "wednesday": "7:00 AM - 3:00 PM",
+        "thursday": "7:00 AM - 3:00 PM",
+        "friday": "7:00 AM - 3:00 PM",
+        "saturday": "8:00 AM - 3:00 PM",
+        "sunday": "8:00 AM - 3:00 PM"
+      },
+      "notes": "Madison's bicycle cafe",
+      "source": "http://www.cafedomestiquemadison.com/"
+    },
+    {
+      "name": "Wonderstate Coffee - Capitol Square",
+      "address": "27 W Main St, Madison, WI 53703",
+      "hours": {
+        "monday": "7:00 AM - 4:00 PM",
+        "tuesday": "7:00 AM - 4:00 PM",
+        "wednesday": "7:00 AM - 4:00 PM",
+        "thursday": "7:00 AM - 4:00 PM",
+        "friday": "7:00 AM - 4:00 PM",
+        "saturday": "7:00 AM - 4:00 PM",
+        "sunday": "7:00 AM - 4:00 PM"
+      },
+      "notes": "Open every day with consistent hours",
+      "source": "https://wonderstate.com/pages/madison-cafe"
+    }
+  ]
+}

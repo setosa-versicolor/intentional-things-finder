@@ -10,7 +10,8 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+// Read API key lazily inside functions to allow dotenv to load first in scripts
+const getApiKey = () => process.env.OPENAI_API_KEY;
 const EMBEDDING_MODEL = 'text-embedding-3-small';
 const EMBEDDING_DIMENSIONS = 1536;
 
@@ -20,6 +21,8 @@ const EMBEDDING_DIMENSIONS = 1536;
  * @returns {Promise<number[]>} - Vector embedding (1536 dimensions)
  */
 export async function generateEmbedding(text) {
+  const OPENAI_API_KEY = getApiKey();
+
   if (!OPENAI_API_KEY) {
     console.warn('⚠️  OPENAI_API_KEY not set - skipping embedding generation');
     return null;

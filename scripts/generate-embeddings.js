@@ -5,12 +5,15 @@
  * Usage: node scripts/generate-embeddings.js [--places] [--events] [--force]
  */
 
-import pg from 'pg';
 import dotenv from 'dotenv';
-import { generateActivityEmbedding } from '../api/_lib/embeddings.js';
 
+// IMPORTANT: Load .env.local BEFORE importing other modules
+// so OPENAI_API_KEY is available when embeddings.js loads
 dotenv.config({ path: '.env.local' });
 dotenv.config();
+
+import pg from 'pg';
+import { generateActivityEmbedding } from '../api/_lib/embeddings.js';
 
 const { Pool } = pg;
 

@@ -1,0 +1,101 @@
+{
+  "verification_template": {
+    "place_name": {
+      "search_query": "exact business name + Madison WI hours",
+      "google_business_url": "",
+      "website_url": "",
+      "hours": {
+        "monday": "",
+        "tuesday": "",
+        "wednesday": "",
+        "thursday": "",
+        "friday": "",
+        "saturday": "",
+        "sunday": ""
+      },
+      "location_notes": "",
+      "special_notes": "",
+      "last_verified": ""
+    }
+  },
+  "breweries_to_verify": [
+    {
+      "name": "Cask & Ale",
+      "location": "Madison",
+      "search_query": "Cask & Ale Madison WI hours",
+      "notes": "Verify exact address/location"
+    },
+    {
+      "name": "Delta Beer Lab",
+      "location": "167 E. Badger Road, Madison, WI",
+      "search_query": "Delta Beer Lab 167 E Badger Road Madison hours",
+      "notes": ""
+    },
+    {
+      "name": "Giant Jones Brewing",
+      "location": "931 E. Main St, Suite 9, Madison, WI",
+      "search_query": "Giant Jones Brewing 931 E Main St Madison hours",
+      "notes": "Story says Wed-Thu 4-8pm, Fri-Sat 4-9pm - verify this"
+    },
+    {
+      "name": "Karben4 Brewing",
+      "location": "3698 Kinsman Blvd, Madison, WI",
+      "search_query": "Karben4 Brewing 3698 Kinsman Blvd Madison hours",
+      "notes": ""
+    },
+    {
+      "name": "New Glarus Brewing Company",
+      "location": "New Glarus, WI",
+      "search_query": "New Glarus Brewing Company retail store hours",
+      "notes": "Retail store, not taproom - verify this distinction"
+    },
+    {
+      "name": "One Barrel Brewing",
+      "location": "2001 Atwood Ave, Madison, WI",
+      "search_query": "One Barrel Brewing 2001 Atwood Ave Madison hours",
+      "notes": ""
+    },
+    {
+      "name": "The Lone Girl Brewing Company",
+      "location": "Madison, WI",
+      "search_query": "The Lone Girl Brewing Company Madison WI hours",
+      "notes": "Verify exact address/location"
+    },
+    {
+      "name": "Tiny's Tap House",
+      "location": "Madison, WI",
+      "search_query": "Tiny's Tap House Madison WI hours",
+      "notes": "Verify exact address/location"
+    },
+    {
+      "name": "Vintage Brewing Company - West Side",
+      "location": "Madison, WI",
+      "search_query": "Vintage Brewing Company Madison west side hours",
+      "notes": "Two locations - verify both separately"
+    },
+    {
+      "name": "Vintage Brewing Company - Capitol East",
+      "location": "Madison, WI",
+      "search_query": "Vintage Brewing Company Madison Capitol East hours",
+      "notes": "Two locations - verify both separately"
+    },
+    {
+      "name": "Working Draft Beer Co.",
+      "location": "1129 E Wilson St, Madison, WI",
+      "search_query": "Working Draft Beer Co 1129 E Wilson St Madison hours",
+      "notes": ""
+    },
+    {
+      "name": "Young Blood Beer Co. - King Street",
+      "location": "Madison, WI",
+      "search_query": "Young Blood Beer Co King Street Madison hours",
+      "notes": "Multiple locations - verify each separately"
+    },
+    {
+      "name": "Young Blood Beer Co. - Northstreet",
+      "location": "Madison, WI",
+      "search_query": "Young Blood Beer Co Northstreet Madison hours",
+      "notes": "Multiple locations - verify each separately"
+    }
+  ]
+}

@@ -389,8 +389,11 @@ const DateTimeSelector = ({ value, onChange }) => {
 };
 
 const RecommendationCard = ({ place, index }) => {
-  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${place.coords.lat},${place.coords.lng}`;
-  
+  // Use Place ID if available for more accurate Google Maps links, fallback to coordinates
+  const mapUrl = place.google_place_id
+    ? `https://www.google.com/maps/place/?q=place_id:${place.google_place_id}`
+    : `https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`;
+
   return (
     <article className="recommendation" style={{ '--delay': `${index * 0.15}s` }}>
       <header className="rec-header">
@@ -551,10 +554,9 @@ function App() {
           story: rec.description,
           nudge: rec.nudge || 'Enjoy your visit!',
           tags: rec.tags || [],
-          coords: {
-            lat: parseFloat(rec.lat),
-            lng: parseFloat(rec.lng)
-          },
+          lat: parseFloat(rec.lat),
+          lng: parseFloat(rec.lng),
+          google_place_id: rec.google_place_id,
           hours: typeof rec.hours === 'string' ? rec.hours : 'Check website',
           kidFriendly: rec.kid_friendly,
           lowEnergy: rec.low_energy

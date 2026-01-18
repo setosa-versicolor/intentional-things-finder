@@ -1,0 +1,249 @@
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.2.3] injecting env (18) from .env.local -- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+(node:107588) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+📁 Found 9 content files
+
+📄 Processing batch-1-coffee-shops-complete.md...
+   Found 14 places in file
+   🔄 Generating embedding for: Colectivo Coffee (Monroe Street)
+   ❌ Error inserting Colectivo Coffee (Monroe Street): null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Johnson Public House (JPH)
+   ❌ Error inserting Johnson Public House (JPH): null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: EVP Coffee
+   ❌ Error inserting EVP Coffee: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Leopold's Book Bar & Cafe
+   ❌ Error inserting Leopold's Book Bar & Cafe: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Cafe Domestique
+   ❌ Error inserting Cafe Domestique: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Wonderstate Coffee
+   ❌ Error inserting Wonderstate Coffee: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Grace Coffee Co.
+   ❌ Error inserting Grace Coffee Co.: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Ancora Coffee
+   ❌ Error inserting Ancora Coffee: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Ledger Coffee Roasters
+   ❌ Error inserting Ledger Coffee Roasters: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Cargo Coffee
+   ❌ Error inserting Cargo Coffee: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Fair Trade Coffee House
+   ❌ Error inserting Fair Trade Coffee House: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Forward Craft and Coffee
+   ❌ Error inserting Forward Craft and Coffee: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Broken Board Coffee
+   ❌ Error inserting Broken Board Coffee: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Alice Good
+   ❌ Error inserting Alice Good: null value in column "type" of relation "places" violates not-null constraint
+
+📄 Processing batch-1-coffee-shops.md...
+   Found 5 places in file
+   🔄 Generating embedding for: Colectivo Coffee (Monroe Street)
+   ❌ Error inserting Colectivo Coffee (Monroe Street): null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Johnson Public House (JPH)
+   ❌ Error inserting Johnson Public House (JPH): null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: EVP Coffee
+   ❌ Error inserting EVP Coffee: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Leopold's Book Bar & Cafe
+   ❌ Error inserting Leopold's Book Bar & Cafe: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Cafe Domestique
+   ❌ Error inserting Cafe Domestique: null value in column "type" of relation "places" violates not-null constraint
+
+📄 Processing batch-2-restaurants-upscale.md...
+   Found 12 places in file
+   🔄 Generating embedding for: L'Etoile
+   ❌ Error inserting L'Etoile: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Graze
+   ❌ Error inserting Graze: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Heritage Tavern
+   ❌ Error inserting Heritage Tavern: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Sardine
+   ❌ Error inserting Sardine: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Mint Mark
+   ❌ Error inserting Mint Mark: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Fairchild
+   ❌ Error inserting Fairchild: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Toby's Supper Club
+   ❌ Error inserting Toby's Supper Club: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Tornado Room
+   ❌ Error inserting Tornado Room: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Nook
+   ❌ Error inserting Nook: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Captain Bill's
+   ❌ Error inserting Captain Bill's: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: A Pig in a Fur Coat
+   ❌ Error inserting A Pig in a Fur Coat: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: The Statehouse
+   ❌ Error inserting The Statehouse: null value in column "type" of relation "places" violates not-null constraint
+
+📄 Processing batch-3-restaurants-casual.md...
+   Found 20 places in file
+   🔄 Generating embedding for: Salvatore's Tomato Pies
+   ❌ Error inserting Salvatore's Tomato Pies: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Ha Long Bay
+   ❌ Error inserting Ha Long Bay: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Buraka
+   ❌ Error inserting Buraka: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Taqueria Guadalajara
+   ❌ Error inserting Taqueria Guadalajara: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: La Concha
+   ❌ Error inserting La Concha: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Antojitos el Toril
+   ❌ Error inserting Antojitos el Toril: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: RED Sushi
+   ❌ Error inserting RED Sushi: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Tavernakaya
+   ❌ Error inserting Tavernakaya: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Dotty Dumpling's Dowry
+   ❌ Error inserting Dotty Dumpling's Dowry: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: The Old Fashioned
+   ❌ Error inserting The Old Fashioned: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Ian's Pizza
+   ❌ Error inserting Ian's Pizza: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Brasserie V
+   ❌ Error inserting Brasserie V: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: The Tipsy Cow
+   ❌ Error inserting The Tipsy Cow: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Bandung Indonesian Restaurant
+   ❌ Error inserting Bandung Indonesian Restaurant: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Madistan
+   ❌ Error inserting Madistan: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Hubbard Ave Diner
+   ❌ Error inserting Hubbard Ave Diner: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Saigon Noodles
+   ❌ Error inserting Saigon Noodles: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Fya Syde Kitchen
+   ❌ Error inserting Fya Syde Kitchen: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Fresh Bite Cafe
+   ❌ Error inserting Fresh Bite Cafe: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Zen Ramen
+   ❌ Error inserting Zen Ramen: null value in column "type" of relation "places" violates not-null constraint
+
+📄 Processing batch-4-cocktail-bars.md...
+   Found 9 places in file
+   🔄 Generating embedding for: Gib's Bar
+   ❌ Error inserting Gib's Bar: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: The Robin Room
+   ❌ Error inserting The Robin Room: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Oz by Oz
+   ❌ Error inserting Oz by Oz: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: State Line Distillery
+   ❌ Error inserting State Line Distillery: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Merchant Madison
+   ❌ Error inserting Merchant Madison: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Nitro Beverage Lounge
+   ❌ Error inserting Nitro Beverage Lounge: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Cooper's Tavern
+   ❌ Error inserting Cooper's Tavern: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: The Mason Lounge
+   ❌ Error inserting The Mason Lounge: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: The Malt House
+   ❌ Error inserting The Malt House: null value in column "type" of relation "places" violates not-null constraint
+
+📄 Processing batch-5-breweries.md...
+   Found 12 places in file
+   🔄 Generating embedding for: Karben4 Brewing
+   ❌ Error inserting Karben4 Brewing: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: One Barrel Brewing
+   ❌ Error inserting One Barrel Brewing: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Working Draft Beer Co.
+   ❌ Error inserting Working Draft Beer Co.: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Giant Jones Brewing
+   ❌ Error inserting Giant Jones Brewing: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Delta Beer Lab
+   ❌ Error inserting Delta Beer Lab: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Young Blood Beer Co.
+   ❌ Error inserting Young Blood Beer Co.: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Vintage Brewing Company
+   ❌ Error inserting Vintage Brewing Company: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: New Glarus Brewing Company
+   ❌ Error inserting New Glarus Brewing Company: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: The Lone Girl Brewing Company
+   ❌ Error inserting The Lone Girl Brewing Company: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Cask & Ale
+   ❌ Error inserting Cask & Ale: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Tiny's Tap House
+   ❌ Error inserting Tiny's Tap House: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: The Old Fashioned
+   ❌ Error inserting The Old Fashioned: null value in column "type" of relation "places" violates not-null constraint
+
+📄 Processing batch-6-brunch.md...
+   Found 8 places in file
+   🔄 Generating embedding for: Sardine
+   ❌ Error inserting Sardine: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Marigold Kitchen
+   ❌ Error inserting Marigold Kitchen: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Monty's Blue Plate Diner
+   ❌ Error inserting Monty's Blue Plate Diner: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Tip Top Tavern
+   ❌ Error inserting Tip Top Tavern: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Mickey's Dairy Bar
+   ❌ Error inserting Mickey's Dairy Bar: null value in column "type" of relation "places" violates not-null constraint
+   ⏭️  Skipped: Daisy Cafe & Cupcakery (already exists)
+   🔄 Generating embedding for: La Brioche
+   ❌ Error inserting La Brioche: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Ogden's North Street Diner
+   ❌ Error inserting Ogden's North Street Diner: null value in column "type" of relation "places" violates not-null constraint
+
+📄 Processing batch-7-parks.md...
+   Found 12 places in file
+   🔄 Generating embedding for: James Madison Park
+   ❌ Error inserting James Madison Park: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Tenney Park
+   ❌ Error inserting Tenney Park: null value in column "type" of relation "places" violates not-null constraint
+   ⏭️  Skipped: Olbrich Botanical Gardens (already exists)
+   🔄 Generating embedding for: Henry Vilas Park
+   ❌ Error inserting Henry Vilas Park: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Warner Park
+   ❌ Error inserting Warner Park: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Elver Park
+   ❌ Error inserting Elver Park: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Hoyt Park
+   ❌ Error inserting Hoyt Park: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Olin Park
+   ❌ Error inserting Olin Park: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Brittingham Park
+   ❌ Error inserting Brittingham Park: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Owen Conservation Park
+   ❌ Error inserting Owen Conservation Park: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Pheasant Branch Conservancy
+   ❌ Error inserting Pheasant Branch Conservancy: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Marshall Park
+   ❌ Error inserting Marshall Park: null value in column "type" of relation "places" violates not-null constraint
+
+📄 Processing batch-8-nature-trails.md...
+   Found 10 places in file
+   🔄 Generating embedding for: UW Arboretum
+   ❌ Error inserting UW Arboretum: null value in column "type" of relation "places" violates not-null constraint
+   ⏭️  Skipped: Picnic Point (already exists)
+   🔄 Generating embedding for: Capital City State Trail
+   ❌ Error inserting Capital City State Trail: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Cherokee Marsh - North Unit
+   ❌ Error inserting Cherokee Marsh - North Unit: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Lower Yahara River Trail
+   ❌ Error inserting Lower Yahara River Trail: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Lakeshore Path
+   ❌ Error inserting Lakeshore Path: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Yahara River Bike Path
+   ❌ Error inserting Yahara River Bike Path: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Ice Age Trail Segments
+   ❌ Error inserting Ice Age Trail Segments: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Devil's Lake State Park
+   ❌ Error inserting Devil's Lake State Park: null value in column "type" of relation "places" violates not-null constraint
+   🔄 Generating embedding for: Governor Dodge State Park
+   ❌ Error inserting Governor Dodge State Park: null value in column "type" of relation "places" violates not-null constraint
+
+
+📊 Import Summary:
+   ✅ Inserted: 0
+   ⏭️  Skipped: 3
+   ❌ Errors: 99
+
+✨ Import complete!

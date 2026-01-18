@@ -10,11 +10,12 @@ import pg from 'pg';
 import dotenv from 'dotenv';
 import { generateActivityEmbedding, hasEmbedding } from '../api/_lib/embeddings.js';
 
+dotenv.config({ path: '.env.local' });
 dotenv.config();
 
 const { Pool } = pg;
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
 });
 
 const ICS_URL = 'https://isthmus.com/search/event/calendar-of-events/calendar.ics';
@@ -226,6 +227,7 @@ async function saveToDatabase(events) {
 
         // Determine if we need to generate embedding
         let embedding = null;
+        let embeddingStr = null; // Formatted string for SQL
         const needsEmbedding = existing.rows.length === 0 || // New event
                                !existing.rows[0].embedding || // No existing embedding
                                existing.rows[0].title !== event.title || // Title changed
@@ -241,9 +243,11 @@ async function saveToDatabase(events) {
             vibe_active: vibe.active
           };
           embedding = await generateActivityEmbedding(activityData);
+          // Format as vector string for SQL: [0.1,0.2,0.3,...]
+          embeddingStr = embedding ? `[${embedding.join(',')}]` : null;
         } else {
-          // Reuse existing embedding
-          embedding = existing.rows[0].embedding;
+          // Reuse existing embedding (already in correct format in DB)
+          embeddingStr = null; // Don't update if reusing
         }
 
         if (existing.rows.length === 0) {
@@ -253,7 +257,7 @@ async function saveToDatabase(events) {
               city_id, title, description, slug, start_time, end_time,
               vibe_quiet, vibe_inside, vibe_active, tags, venue_name, venue_address,
               source_url, source, source_id, embedding, is_active
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::vector, $17)
           `, [
             cityId, event.title, event.description, slug,
             event.startTime, event.endTime,
@@ -261,27 +265,44 @@ async function saveToDatabase(events) {
             null, event.location, // venue name/address combined in location
             event.url,
             'isthmus', sourceId,
-            embedding ? JSON.stringify(embedding) : null, // Store embedding as JSON
+            embeddingStr,
             true
           ]);
 
           inserted++;
         } else {
-          // Update existing event
-          await client.query(`
-            UPDATE events SET
-              title = $1, description = $2, start_time = $3, end_time = $4,
-              vibe_quiet = $5, vibe_inside = $6, vibe_active = $7, tags = $8,
-              venue_address = $9, source_url = $10, embedding = $11,
-              updated_at = NOW()
-            WHERE source = $12 AND source_id = $13
-          `, [
-            event.title, event.description, event.startTime, event.endTime,
-            vibe.quiet, vibe.inside, vibe.active, allTags,
-            event.location, event.url,
-            embedding ? JSON.stringify(embedding) : null,
-            'isthmus', sourceId
-          ]);
+          // Update existing event - only update embedding if needsEmbedding is true
+          if (needsEmbedding && embeddingStr) {
+            await client.query(`
+              UPDATE events SET
+                title = $1, description = $2, start_time = $3, end_time = $4,
+                vibe_quiet = $5, vibe_inside = $6, vibe_active = $7, tags = $8,
+                venue_address = $9, source_url = $10, embedding = $11::vector,
+                updated_at = NOW()
+              WHERE source = $12 AND source_id = $13
+            `, [
+              event.title, event.description, event.startTime, event.endTime,
+              vibe.quiet, vibe.inside, vibe.active, allTags,
+              event.location, event.url,
+              embeddingStr,
+              'isthmus', sourceId
+            ]);
+          } else {
+            // Don't update embedding if reusing existing one
+            await client.query(`
+              UPDATE events SET
+                title = $1, description = $2, start_time = $3, end_time = $4,
+                vibe_quiet = $5, vibe_inside = $6, vibe_active = $7, tags = $8,
+                venue_address = $9, source_url = $10,
+                updated_at = NOW()
+              WHERE source = $11 AND source_id = $12
+            `, [
+              event.title, event.description, event.startTime, event.endTime,
+              vibe.quiet, vibe.inside, vibe.active, allTags,
+              event.location, event.url,
+              'isthmus', sourceId
+            ]);
+          }
 
           updated++;
         }
