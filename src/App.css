@@ -72,10 +72,10 @@ body::before {
 body.atmosphere-inside::before {
   opacity: 1;
   background: radial-gradient(
-    ellipse 120% 80% at 50% -20%,
-    rgba(255, 230, 200, 0.15) 0%,
-    rgba(255, 220, 180, 0.08) 30%,
-    rgba(255, 200, 150, 0.03) 60%,
+    ellipse 110% 70% at 50% -10%,
+    rgba(255, 220, 180, 0.35) 0%,
+    rgba(255, 200, 150, 0.20) 25%,
+    rgba(255, 180, 120, 0.10) 50%,
     transparent 100%
   );
 }
@@ -84,10 +84,10 @@ body.atmosphere-inside::before {
 body.atmosphere-outside::before {
   opacity: 1;
   background-image:
-    radial-gradient(ellipse 400px 100px at 20% 30%, rgba(230, 235, 245, 0.3) 0%, transparent 50%),
-    radial-gradient(ellipse 500px 120px at 80% 60%, rgba(220, 230, 240, 0.25) 0%, transparent 50%),
-    radial-gradient(ellipse 350px 90px at 40% 80%, rgba(235, 240, 250, 0.2) 0%, transparent 50%);
-  animation: cloudDrift 120s ease-in-out infinite;
+    radial-gradient(ellipse 500px 150px at 15% 25%, rgba(200, 215, 235, 0.5) 0%, transparent 60%),
+    radial-gradient(ellipse 600px 180px at 75% 55%, rgba(190, 210, 230, 0.45) 0%, transparent 60%),
+    radial-gradient(ellipse 450px 130px at 35% 75%, rgba(210, 225, 245, 0.4) 0%, transparent 60%);
+  animation: cloudDrift 90s ease-in-out infinite;
 }
 
 @keyframes cloudDrift {
@@ -723,18 +723,18 @@ body.atmosphere-outside::before {
   /* Dark mode atmospheric effects - warmer, more subdued */
   body.atmosphere-inside::before {
     background: radial-gradient(
-      ellipse 120% 80% at 50% -20%,
-      rgba(255, 180, 120, 0.12) 0%,
-      rgba(220, 140, 80, 0.06) 30%,
-      rgba(180, 100, 50, 0.02) 60%,
+      ellipse 110% 70% at 50% -10%,
+      rgba(255, 160, 100, 0.25) 0%,
+      rgba(220, 130, 70, 0.15) 25%,
+      rgba(180, 100, 50, 0.08) 50%,
       transparent 100%
     );
   }
 
   body.atmosphere-outside::before {
     background-image:
-      radial-gradient(ellipse 400px 100px at 20% 30%, rgba(60, 70, 90, 0.25) 0%, transparent 50%),
-      radial-gradient(ellipse 500px 120px at 80% 60%, rgba(50, 65, 85, 0.2) 0%, transparent 50%),
-      radial-gradient(ellipse 350px 90px at 40% 80%, rgba(55, 70, 95, 0.18) 0%, transparent 50%);
+      radial-gradient(ellipse 500px 150px at 15% 25%, rgba(80, 100, 130, 0.35) 0%, transparent 60%),
+      radial-gradient(ellipse 600px 180px at 75% 55%, rgba(70, 95, 125, 0.30) 0%, transparent 60%),
+      radial-gradient(ellipse 450px 130px at 35% 75%, rgba(75, 100, 135, 0.28) 0%, transparent 60%);
   }
 }
