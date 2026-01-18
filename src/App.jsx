@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 import { getRecommendations as getRecommendationsAPI } from './api';
 
@@ -432,6 +432,22 @@ const InputScreen = ({ onSubmit }) => {
   const [location, setLocation] = useState('either');
   const [selectedTags, setSelectedTags] = useState([]);
   const [dateTime, setDateTime] = useState(null); // null = "Now"
+
+  // Apply atmospheric effect based on location selection
+  useEffect(() => {
+    document.body.classList.remove('atmosphere-inside', 'atmosphere-outside');
+
+    if (location === 'inside') {
+      document.body.classList.add('atmosphere-inside');
+    } else if (location === 'outside') {
+      document.body.classList.add('atmosphere-outside');
+    }
+
+    // Cleanup on unmount
+    return () => {
+      document.body.classList.remove('atmosphere-inside', 'atmosphere-outside');
+    };
+  }, [location]);
 
   const handleSubmit = () => {
     onSubmit({
