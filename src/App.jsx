@@ -449,6 +449,27 @@ const InputScreen = ({ onSubmit }) => {
     };
   }, [location]);
 
+  // Apply tag-based decorative effects
+  useEffect(() => {
+    // Remove all tag classes
+    const tagClasses = [
+      'tag-nature', 'tag-dog-friendly', 'tag-food-focused', 'tag-cheap-eats',
+      'tag-creative', 'tag-solo-friendly', 'tag-date-night', 'tag-kid-friendly', 'tag-free'
+    ];
+    tagClasses.forEach(cls => document.body.classList.remove(cls));
+
+    // Apply class for the first selected tag (to avoid overwhelming visual effects)
+    if (selectedTags.length > 0) {
+      const firstTag = selectedTags[0];
+      document.body.classList.add(`tag-${firstTag}`);
+    }
+
+    // Cleanup on unmount
+    return () => {
+      tagClasses.forEach(cls => document.body.classList.remove(cls));
+    };
+  }, [selectedTags]);
+
   const handleSubmit = () => {
     onSubmit({
       timeAvailable,

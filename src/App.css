@@ -68,6 +68,22 @@ body::before {
   transition: opacity 1.5s ease;
 }
 
+/* Tag-based decorative effects layer */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 2s ease;
+  background-repeat: repeat;
+  background-size: 200px 200px;
+}
+
 /* Warm lamp glow for "inside" selection */
 body.atmosphere-inside::before {
   opacity: 1;
@@ -103,6 +119,93 @@ body.atmosphere-outside::before {
   75% {
     transform: translate(20px, -5px);
   }
+}
+
+/* Tag-based decorative patterns */
+body.tag-nature::after {
+  opacity: 0.15;
+  background-image: radial-gradient(circle, rgba(120, 150, 100, 0.3) 2px, transparent 2px),
+                    radial-gradient(circle, rgba(100, 140, 90, 0.25) 1.5px, transparent 1.5px);
+  background-size: 80px 80px, 120px 120px;
+  background-position: 0 0, 40px 60px;
+}
+
+body.tag-dog-friendly::after {
+  opacity: 0.12;
+  background-image:
+    radial-gradient(ellipse 3px 2px at 50% 40%, rgba(160, 140, 120, 0.4) 50%, transparent 50%),
+    radial-gradient(circle 1.5px at 35% 55%, rgba(160, 140, 120, 0.4) 50%, transparent 50%),
+    radial-gradient(circle 1.5px at 65% 55%, rgba(160, 140, 120, 0.4) 50%, transparent 50%),
+    radial-gradient(circle 1px at 35% 70%, rgba(160, 140, 120, 0.4) 50%, transparent 50%),
+    radial-gradient(circle 1px at 65% 70%, rgba(160, 140, 120, 0.4) 50%, transparent 50%);
+  background-size: 100px 100px;
+  background-position: 0 0;
+}
+
+body.tag-food-focused::after {
+  opacity: 0.14;
+  background-image:
+    radial-gradient(circle 15px at 50% 50%, transparent 14px, rgba(180, 160, 140, 0.3) 14px, rgba(180, 160, 140, 0.3) 15px, transparent 15px),
+    linear-gradient(90deg, transparent 48%, rgba(180, 160, 140, 0.35) 48%, rgba(180, 160, 140, 0.35) 52%, transparent 52%),
+    linear-gradient(0deg, transparent 48%, rgba(180, 160, 140, 0.35) 48%, rgba(180, 160, 140, 0.35) 52%, transparent 52%);
+  background-size: 120px 120px;
+  background-position: 0 0;
+}
+
+body.tag-cheap-eats::after {
+  opacity: 0.13;
+  background-image:
+    radial-gradient(ellipse 20px 8px at 50% 35%, rgba(200, 170, 140, 0.35) 50%, transparent 50%),
+    radial-gradient(circle 18px at 50% 60%, rgba(190, 160, 130, 0.3) 50%, transparent 50%);
+  background-size: 110px 110px;
+  background-position: 0 0;
+}
+
+body.tag-creative::after {
+  opacity: 0.12;
+  background-image:
+    radial-gradient(ellipse 25px 15px at 30% 40%, rgba(180, 140, 160, 0.25) 40%, transparent 60%),
+    radial-gradient(ellipse 20px 12px at 70% 60%, rgba(160, 150, 180, 0.22) 40%, transparent 60%),
+    radial-gradient(circle 8px at 50% 75%, rgba(200, 160, 140, 0.2) 50%, transparent 70%);
+  background-size: 140px 140px;
+  background-position: 0 0;
+}
+
+body.tag-solo-friendly::after {
+  opacity: 0.1;
+  background-image:
+    radial-gradient(circle 20px at 50% 50%, transparent 18px, rgba(140, 150, 160, 0.3) 18px, rgba(140, 150, 160, 0.3) 20px, transparent 20px);
+  background-size: 150px 150px;
+  background-position: 0 0;
+}
+
+body.tag-date-night::after {
+  opacity: 0.11;
+  background-image:
+    radial-gradient(circle at 45% 48%, rgba(200, 140, 150, 0.25) 8px, transparent 8px),
+    radial-gradient(circle at 55% 48%, rgba(200, 140, 150, 0.25) 8px, transparent 8px),
+    radial-gradient(ellipse 10px 15px at 50% 60%, rgba(200, 140, 150, 0.28) 50%, transparent 50%);
+  background-size: 100px 100px;
+  background-position: 0 0;
+}
+
+body.tag-kid-friendly::after {
+  opacity: 0.13;
+  background-image:
+    radial-gradient(circle 3px at 30% 30%, rgba(220, 180, 140, 0.35) 50%, transparent 50%),
+    radial-gradient(circle 2.5px at 60% 50%, rgba(180, 200, 220, 0.35) 50%, transparent 50%),
+    radial-gradient(circle 2px at 45% 70%, rgba(220, 200, 140, 0.35) 50%, transparent 50%),
+    radial-gradient(circle 3px at 70% 75%, rgba(200, 180, 200, 0.35) 50%, transparent 50%);
+  background-size: 90px 90px;
+  background-position: 0 0;
+}
+
+body.tag-free::after {
+  opacity: 0.08;
+  background-image:
+    linear-gradient(45deg, transparent 48%, rgba(150, 160, 150, 0.2) 48%, rgba(150, 160, 150, 0.2) 52%, transparent 52%);
+  background-size: 200px 200px;
+  background-position: 0 0;
 }
 
 .app {
