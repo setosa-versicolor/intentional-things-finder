@@ -30,7 +30,8 @@ SELECT
   NULL::TEXT AS source,
   p.google_place_id,
   p.google_rating,
-  p.google_user_ratings_total
+  p.google_user_ratings_total,
+  p.hours
 FROM places p
 
 UNION ALL
@@ -61,7 +62,8 @@ SELECT
   e.source,
   NULL AS google_place_id,
   NULL AS google_rating,
-  NULL AS google_user_ratings_total
+  NULL AS google_user_ratings_total,
+  NULL::JSONB AS hours
 FROM events e
 WHERE e.start_time > NOW() - INTERVAL '2 hours';
 

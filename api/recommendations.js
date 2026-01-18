@@ -11,6 +11,7 @@ import {
   checkTimeConstraint,
 } from './_lib/db.js';
 import { generatePreferenceEmbedding } from './_lib/embeddings.js';
+import { isCurrentlyOpen } from './_lib/hours.js';
 
 export default async function handler(req, res) {
   // Only allow POST
@@ -78,7 +79,11 @@ export default async function handler(req, res) {
         end_time,
         venue_name,
         source,
-        price_level
+        price_level,
+        google_place_id,
+        google_rating,
+        google_user_ratings_total,
+        hours
       FROM activities
       WHERE
         city_id = $1
@@ -142,6 +147,13 @@ export default async function handler(req, res) {
         if (activity.type === 'event' && activity.start_time) {
           const eventStart = new Date(activity.start_time);
           if (eventStart < requestedDate) {
+            return false;
+          }
+        }
+
+        // Hours check for places - filter out places that are currently closed
+        if (activity.type === 'place' && activity.hours) {
+          if (!isCurrentlyOpen(activity.hours)) {
             return false;
           }
         }
