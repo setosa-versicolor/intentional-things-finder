@@ -34,6 +34,15 @@ function getTimeOfDay() {
   return 'evening';
 }
 
+// Get current season based on month
+function getCurrentSeason() {
+  const month = new Date().getMonth(); // 0-11
+  if (month >= 2 && month <= 4) return 'spring'; // Mar, Apr, May
+  if (month >= 5 && month <= 7) return 'summer'; // Jun, Jul, Aug
+  if (month >= 8 && month <= 10) return 'fall'; // Sep, Oct, Nov
+  return 'winter'; // Dec, Jan, Feb
+}
+
 // Vibe scoring (matching logic from MVP)
 function calculateVibeScore(activity, preferences) {
   const quietMatch = 1 - Math.abs((activity.vibe_quiet || 0.5) - preferences.quietSocial);
@@ -125,9 +134,10 @@ app.post('/api/recommendations', async (req, res) => {
 
     const cityId = cityResult.rows[0].id;
     const currentTime = getTimeOfDay();
+    const currentSeason = getCurrentSeason();
     const currentDay = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
 
-    // Build SQL query with filters
+    // Build SQL query with filters (including seasonal filtering)
     const query = `
       SELECT
         type,
@@ -148,15 +158,17 @@ app.post('/api/recommendations', async (req, res) => {
         end_time,
         venue_name,
         source,
-        price_level
+        price_level,
+        seasons
       FROM activities
       WHERE
         city_id = $1
         AND is_active = TRUE
         AND ($2 = FALSE OR kid_friendly = TRUE)
+        AND (seasons IS NULL OR $3 = ANY(seasons))
     `;
 
-    const params = [cityId, kidFriendly];
+    const params = [cityId, kidFriendly, currentSeason];
     const activities = await pool.query(query, params);
 
     // Score each activity
@@ -232,6 +244,7 @@ app.post('/api/recommendations', async (req, res) => {
       recommendations: scored,
       metadata: {
         timeOfDay: currentTime,
+        season: currentSeason,
         dayOfWeek: currentDay,
         totalCandidates: activities.rows.length,
         filteredCount: scored.length,
