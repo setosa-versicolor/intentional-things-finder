@@ -178,14 +178,19 @@ Every change should make the app feel more like that friend: aware of the weathe
 - [x] Add Vitest with scoring and hours tests, plus a test and build GitHub Action.
 - [x] *Found along the way:* fix the inverted quiet/lively scoring, the inverted energy wording in the embedding query, `best_times` never reaching the scorer, Google's Monday-first `weekday_text` being read Sunday-first, Places API (New) hours being stored without times, and ICS event times being read as UTC.
 
-### Phase 1: Data foundation (about 1–2 weeks)
+### Phase 1: Data foundation ✅ (done, with a few steps for you to run)
 
-- [ ] Finish the Google hours sync for all places and show "open until X".
-- [ ] Normalize tags to a controlled vocabulary with a migration. Drop UI tags that match nothing, or backfill them (e.g. `dog-friendly`).
-- [ ] Replace free-text neighborhoods with polygons from Madison Open Data.
-- [ ] Add weather (NWS) and sun (suncalc) as request-time context, cached for about 10 min.
-- [ ] Add Madison Public Library and UW events ICS feeds to the cron job, with dedup.
-- [ ] Optional: an LLM triage pass for scraped events.
+- [x] Hours: cards say "Open until 9:00 PM". The Google sync repairs broken hours and runs weekly from GitHub Actions. *You run:* add the `GOOGLE_PLACES_API_KEY` secret, or run `node scripts/sync-google-places.js` yourself.
+- [x] One tag vocabulary (`api/_lib/tags.js`) shared by the UI, scoring and ingestion. Tags that matched nothing are gone from the UI. *You run:* `node scripts/normalize-tags.js --apply` once.
+- [x] Neighborhoods from the City's Neighborhood Associations boundaries, replacing vague ones like "Madison". *You run:* `node scripts/assign-neighborhoods.js` (dry run), then `--apply`.
+- [x] Weather (NWS hourly forecast) and sun (sunset, dusk, golden hour) feed into ranking. The results header shows "68° and mostly sunny · sunset 6:49 PM".
+- [x] One ingestion module for every ICS feed, with bulk upserts and cross-source dedup. Add feeds without code changes via `EXTRA_ICS_FEEDS`. *You run:* check the library and UW feed URLs with `node scripts/vet-feeds.js <url>`, then add them.
+- [ ] Optional LLM triage of scraped events. Deferred until you decide how much AI-written copy should reach users.
+- [x] *Found along the way:*
+  - The Vercel cron overwrote the GitHub Action's event tags every day and never set `vibe_active`.
+  - The `activities` view dropped all-day and running events 2 hours after they started (fixed by migration 010).
+  - Tag regexes matched inside words: "party" counted as art, "update" as a date.
+- [x] Tests now run against a real in-process Postgres (PGlite) with every migration applied.
 
 ### Phase 2: UX redesign (about 2 weeks)
 

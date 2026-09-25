@@ -9,6 +9,9 @@
  * Usage:
  *   node scripts/sync-google-places.js [--all] [--limit=10]
  *
+ * By default it syncs places that have never been synced, were last synced
+ * over 7 days ago, or have missing or broken hours.
+ *
  * Options:
  *   --all: Sync all places, even those already synced
  *   --limit=N: Only sync N places (useful for testing)
@@ -21,6 +24,7 @@ dotenv.config({ path: '.env.local' });
 dotenv.config();
 
 import pg from 'pg';
+import { fileURLToPath } from 'url';
 import {
   findPlaceId,
   getPlaceDetails,
@@ -30,9 +34,53 @@ import {
 
 const { Pool } = pg;
 
+/**
+ * Places that need a sync: never synced, stale, or with hours we can't use
+ * (missing, or periods without times from the old Places API bug).
+ * "unknown" hours are a real answer for parks and trails, so they wait for
+ * the weekly refresh like everything else.
+ */
+export async function findPlacesNeedingSync(pool, { all = false, limit = null } = {}) {
+  let query = `
+    SELECT id, name, neighborhood, address, lat, lng, google_place_id
+    FROM places
+    WHERE is_active = TRUE
+  `;
+
+  if (!all) {
+    query += `
+      AND (
+        google_place_id IS NULL
+        OR last_synced_at IS NULL
+        OR last_synced_at < NOW() - INTERVAL '7 days'
+        OR hours IS NULL
+        OR (
+          jsonb_typeof(hours->'periods') = 'array'
+          AND EXISTS (
+            SELECT 1 FROM jsonb_array_elements(hours->'periods') AS period
+            WHERE period->'open'->>'time' IS NULL
+          )
+        )
+      )
+    `;
+  }
+
+  query += ' ORDER BY last_synced_at NULLS FIRST, id';
+
+  const params = [];
+  if (limit) {
+    params.push(limit);
+    query += ' LIMIT $1';
+  }
+
+  const { rows } = await pool.query(query, params);
+  return rows;
+}
+
 async function syncGooglePlaces() {
   const pool = new Pool({
-    connectionString: process.env.POSTGRES_URL,
+    connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
   });
 
   try {
@@ -48,28 +96,11 @@ async function syncGooglePlaces() {
     const args = process.argv.slice(2);
     const syncAll = args.includes('--all');
     const limitMatch = args.find(arg => arg.startsWith('--limit='));
-    const limit = limitMatch ? parseInt(limitMatch.split('=')[1]) : null;
+    const limit = limitMatch ? parseInt(limitMatch.split('=')[1], 10) || null : null;
 
     console.log('🔄 Syncing places with Google Places API...\n');
 
-    // Query for places that need syncing
-    let query = `
-      SELECT id, name, neighborhood, address, lat, lng, google_place_id
-      FROM places
-      WHERE is_active = TRUE
-    `;
-
-    if (!syncAll) {
-      query += ` AND (google_place_id IS NULL OR last_synced_at IS NULL OR last_synced_at < NOW() - INTERVAL '7 days')`;
-    }
-
-    query += ` ORDER BY id`;
-
-    if (limit) {
-      query += ` LIMIT ${limit}`;
-    }
-
-    const result = await pool.query(query);
+    const result = { rows: await findPlacesNeedingSync(pool, { all: syncAll, limit }) };
     console.log(`Found ${result.rows.length} places to sync\n`);
 
     if (result.rows.length === 0) {
@@ -203,4 +234,6 @@ async function syncGooglePlaces() {
   }
 }
 
-syncGooglePlaces();
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  syncGooglePlaces();
+}

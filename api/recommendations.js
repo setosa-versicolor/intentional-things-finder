@@ -8,6 +8,7 @@ import { generatePreferenceEmbedding } from './_lib/embeddings.js';
 import { getTodaysHours } from './_lib/hours.js';
 import { buildContext, rankActivities } from './_lib/recommend.js';
 import { getDayOfWeek } from './_lib/time.js';
+import { getHourlyForecast, weatherAt } from './_lib/weather.js';
 
 const MAX_LIMIT = 10;
 const MAX_DAYS_AHEAD = 14;
@@ -130,12 +131,14 @@ export default async function handler(req, res) {
     }
     const cityId = cityResult.rows[0].id;
 
-    const [activities, semanticScores] = await Promise.all([
+    const [activities, semanticScores, forecast] = await Promise.all([
       pool.query(ACTIVITIES_QUERY, [cityId]),
       getSemanticScores(pool, cityId, preferences),
+      getHourlyForecast(),
     ]);
 
-    const context = buildContext({ date: requestedDate, semanticScores });
+    const weather = weatherAt(forecast, requestedDate);
+    const context = buildContext({ date: requestedDate, semanticScores, weather });
     const ranked = rankActivities(activities.rows, preferences, context, limit)
       .map(activity => ({
         ...activity,
@@ -197,6 +200,16 @@ export default async function handler(req, res) {
         timeOfDay: context.timeOfDay,
         season: context.season,
         dayOfWeek,
+        conditions: {
+          weather: weather && {
+            temperature: weather.temperature,
+            shortForecast: weather.shortForecast,
+            precipChance: weather.precipChance,
+            rating: weather.rating,
+          },
+          sunset: context.sun.sunset.toISOString(),
+          dusk: context.sun.dusk.toISOString(),
+        },
         totalCandidates: activities.rows.length,
         filteredCount: ranked.length,
       },

@@ -52,6 +52,19 @@ npm run build
 npm test
 ```
 
+## Keeping the data fresh
+
+| What | How | When |
+|---|---|---|
+| Events | `api/_lib/events-ingest.js`, run by the Vercel cron and `.github/workflows/scrape-events.yml` | Daily |
+| More event feeds | Set `EXTRA_ICS_FEEDS` (JSON list of `{source, name, url}`) as a Vercel env var and a GitHub repo variable. Vet a feed first with `node scripts/vet-feeds.js <url>` | Once per feed |
+| Hours, ratings, closures | `node scripts/sync-google-places.js`, also run by `.github/workflows/sync-places.yml` | Weekly |
+| Tags | `node scripts/normalize-tags.js --apply` | After bulk imports |
+| Neighborhoods | `node scripts/assign-neighborhoods.js --apply` | After adding places |
+| Weather & sunset | Fetched live from api.weather.gov; sunset computed locally | Every request (cached 10 min) |
+
+Scripts that change data do a dry run unless you pass `--apply`.
+
 ## Project Structure
 
 ```

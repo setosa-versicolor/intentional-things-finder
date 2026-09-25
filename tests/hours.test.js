@@ -94,3 +94,16 @@ describe('getTodaysHours', () => {
     expect(getTodaysHours({ weekday_text: [] })).toBeNull();
   });
 });
+
+describe('getClosingTime', () => {
+  it('finds when the current period ends, in Madison time', async () => {
+    const { getClosingTime } = await import('../api/_lib/hours.js');
+    expect(getClosingTime(cafe, madison(25, 15)).toISOString()).toBe(madison(25, 18).toISOString());
+    // Friday 11pm at the bar: closes 2am Saturday
+    expect(getClosingTime(bar, madison(25, 23)).toISOString()).toBe(madison(26, 2).toISOString());
+    // Saturday night into Sunday wraps the week
+    expect(getClosingTime(bar, madison(26, 23, 30)).toISOString()).toBe(madison(27, 2).toISOString());
+    expect(getClosingTime(cafe, madison(25, 20))).toBeNull();
+    expect(getClosingTime({ always_open: true })).toBeNull();
+  });
+});

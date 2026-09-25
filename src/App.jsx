@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import { getRecommendations as getRecommendationsAPI, sendFeedback } from './api';
 import { buildContext, rankActivities } from '../api/_lib/recommend.js';
+import { TAG_OPTIONS } from '../api/_lib/tags.js';
 import { FALLBACK_PLACES } from './fallbackPlaces.js';
-import { toCard, greetingFor } from './cards.js';
+import { toCard, greetingFor, describeConditions } from './cards.js';
+import { getSunTimes } from '../api/_lib/sun.js';
 
 // Offline fallback: same ranking as the API, over a handful of favorites
 const getFallbackRecommendations = (preferences, date, count = 3) =>
@@ -86,22 +88,6 @@ const LocationSelector = ({ value, onChange }) => {
 };
 
 const TagSelector = ({ selectedTags, onChange }) => {
-  const tags = [
-    'dog-friendly',
-    'food-focused',
-    'kid-friendly',
-    'date-night',
-    'solo-friendly',
-    'creative',
-    'educational',
-    'nature',
-    'friend-hangout',
-    'unusual-options',
-    'outside-my-norm',
-    'free',
-    'cheap-eats'
-  ];
-
   const toggleTag = (tag) => {
     if (selectedTags.includes(tag)) {
       onChange(selectedTags.filter(t => t !== tag));
@@ -114,7 +100,7 @@ const TagSelector = ({ selectedTags, onChange }) => {
     <div className="tag-selector">
       <label className="selector-label">Tags (select any that apply)</label>
       <div className="tag-options">
-        {tags.map(tag => (
+        {TAG_OPTIONS.map(({ tag, label }) => (
           <button
             key={tag}
             type="button"
@@ -122,7 +108,7 @@ const TagSelector = ({ selectedTags, onChange }) => {
             className={`tag-option ${selectedTags.includes(tag) ? 'active' : ''}`}
             onClick={() => toggleTag(tag)}
           >
-            {tag}
+            {label}
           </button>
         ))}
       </div>
@@ -353,9 +339,10 @@ const InputScreen = ({ onSubmit, loading }) => {
   );
 };
 
-const ResultsScreen = ({ recommendations, requestedDate, usingFallback, onBack, onGo }) => {
+const ResultsScreen = ({ recommendations, requestedDate, conditions, usingFallback, onBack, onGo }) => {
   const now = new Date();
   const greeting = greetingFor(requestedDate, now);
+  const conditionsLine = describeConditions(conditions, requestedDate);
   const cards = recommendations.map(rec => toCard(rec, { requestedDate, now }));
 
   return (
@@ -363,6 +350,7 @@ const ResultsScreen = ({ recommendations, requestedDate, usingFallback, onBack, 
       <header className="results-header">
         <button type="button" className="back-button" onClick={onBack}>← Different mood</button>
         <p className="results-greeting">{greeting}, here's what fits:</p>
+        {conditionsLine && <p className="results-conditions">{conditionsLine}</p>}
         {usingFallback && (
           <p className="results-notice">
             Couldn't reach the full list just now, so here are a few old favorites.
@@ -395,6 +383,7 @@ function App() {
   const [recommendations, setRecommendations] = useState([]);
   const [recommendationId, setRecommendationId] = useState(null);
   const [requestedDate, setRequestedDate] = useState(() => new Date());
+  const [conditions, setConditions] = useState(null);
   const [loading, setLoading] = useState(false);
   const [usingFallback, setUsingFallback] = useState(false);
 
@@ -409,11 +398,13 @@ function App() {
       setRecommendations(response.recommendations || []);
       setRecommendationId(response.metadata?.recommendationId ?? null);
       setRequestedDate(response.metadata?.requestedAt ? new Date(response.metadata.requestedAt) : date);
+      setConditions(response.metadata?.conditions ?? null);
       setUsingFallback(false);
     } else {
       setRecommendations(getFallbackRecommendations(preferences, date));
       setRecommendationId(null);
       setRequestedDate(date);
+      setConditions({ sunset: getSunTimes(date).sunset.toISOString() });
       setUsingFallback(true);
     }
 
@@ -441,6 +432,7 @@ function App() {
         <ResultsScreen
           recommendations={recommendations}
           requestedDate={requestedDate}
+          conditions={conditions}
           usingFallback={usingFallback}
           onBack={handleBack}
           onGo={handleGo}

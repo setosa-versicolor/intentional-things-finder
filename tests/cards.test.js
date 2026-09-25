@@ -75,3 +75,33 @@ describe('greetingFor', () => {
     expect(greetingFor(fromLocalTime(2026, 8, 26, 14, 0), now)).toBe('Saturday afternoon');
   });
 });
+
+describe('describeConditions', () => {
+  it('reads like a sentence', async () => {
+    const { describeConditions } = await import('../src/cards.js');
+    const sunset = fromLocalTime(2026, 8, 25, 18, 49).toISOString();
+    expect(describeConditions({ weather: { temperature: 68.4, shortForecast: 'Mostly Sunny' }, sunset }, now))
+      .toBe('68° and mostly sunny · sunset 6:49 PM');
+    // After sunset, don't mention it
+    expect(describeConditions({ weather: null, sunset }, fromLocalTime(2026, 8, 25, 20, 0))).toBeNull();
+  });
+});
+
+describe('open until', () => {
+  const daily = (open, close) => ({
+    periods: [0, 1, 2, 3, 4, 5, 6].map(day => ({ open: { day, time: open }, close: { day: close <= open ? (day + 1) % 7 : day, time: close } })),
+  });
+
+  it('prefers "Open until" over posted hours', () => {
+    const card = toCard({ type: 'place', id: 1, title: 'Bar', hours: daily('1600', '0200'), hours_today: '4 PM – 2 AM' }, { requestedDate: now, now });
+    expect(card.when).toBe('Open until 2:00 AM');
+  });
+
+  it('names the day for future plans and handles 24/7', () => {
+    const sat = fromLocalTime(2026, 8, 26, 10, 0);
+    expect(toCard({ type: 'place', id: 1, title: 'Cafe', hours: daily('0700', '1800') }, { requestedDate: sat, now }).when)
+      .toBe('Saturday: Open until 6:00 PM');
+    expect(toCard({ type: 'place', id: 2, title: 'Park', hours: { always_open: true } }, { requestedDate: now, now }).when)
+      .toBe('Open 24 hours');
+  });
+});

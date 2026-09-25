@@ -11,6 +11,8 @@
 
 import { getTimeOfDay, getSeason } from './time.js';
 import { isOpenForVisit } from './hours.js';
+import { normalizeTags } from './tags.js';
+import { getSunTimes, isDark, isGoldenHour } from './sun.js';
 
 // Minimum time worth spending somewhere once you arrive
 export const MIN_STAY_MINUTES = 30;
@@ -109,7 +111,9 @@ export function scoreActivity(activity, preferences, context) {
   // Tag matching (30 points)
   let tagScore = 0;
   if (tags.length > 0 && Array.isArray(activity.tags)) {
-    const matching = tags.filter(tag => activity.tags.includes(tag));
+    // Normalize here too, so unmigrated rows ("date night", "kids") still match
+    const activityTags = normalizeTags(activity.tags);
+    const matching = normalizeTags(tags).filter(tag => activityTags.includes(tag));
     tagScore = (matching.length / tags.length) * 30;
   }
   breakdown.tagScore = round1(tagScore);
@@ -134,23 +138,69 @@ export function scoreActivity(activity, preferences, context) {
   }
   breakdown.availabilityScore = round1(availabilityScore);
 
+  // Weather and daylight (-45 to +14)
+  breakdown.conditionsScore = conditionsScore(activity, context);
+
   // A little variety (5 points)
   breakdown.randomBonus = round1(random() * 5);
 
   score = breakdown.quietScore + breakdown.activeScore + tagScore + semanticScore +
-    breakdown.timeBonus + availabilityScore + breakdown.randomBonus;
+    breakdown.timeBonus + availabilityScore + breakdown.conditionsScore + breakdown.randomBonus;
 
   return { score: round1(score), breakdown };
 }
 
+const WEATHER_SCORES = {
+  //        outdoor, indoor
+  bad:   [-25, 5],
+  meh:   [-10, 2],
+  ok:    [0, 0],
+  great: [8, -2],
+};
+
+/**
+ * Nudge outdoor picks up or down for the weather and the light.
+ * Soft scoring only: a rainy-day park can still win if nothing else fits.
+ */
+export function conditionsScore(activity, context) {
+  const { weather, sun, date } = context;
+  const inside = toNumber(activity.vibe_inside, 0.5);
+  const outdoor = inside <= 0.4;
+  const indoor = inside >= 0.6;
+  let score = 0;
+
+  if (weather) {
+    let rating = weather.rating;
+    // Cold and snow are the point of sledding and skating
+    const winterActivity = Array.isArray(activity.seasons) && activity.seasons.includes('winter');
+    if (winterActivity && rating !== 'bad' && !/rain|showers|drizzle/i.test(weather.shortForecast)) {
+      rating = 'ok';
+    }
+    const [outdoorScore, indoorScore] = WEATHER_SCORES[rating] || WEATHER_SCORES.ok;
+    if (outdoor) score += outdoorScore;
+    if (indoor) score += indoorScore;
+  }
+
+  // Unlit nature spots: skip after dark, favor golden hour
+  if (sun && outdoor && activity.type === 'place' && normalizeTags(activity.tags).includes('nature')) {
+    if (isDark(date, sun)) score -= 20;
+    else if (isGoldenHour(date, sun)) score += 6;
+  }
+
+  return score;
+}
+
 /**
  * Build the context for a request. Everything time-based is Madison-local.
+ * @param {Object} [options.weather] - weatherAt() summary for the requested time, if known
  */
-export function buildContext({ date = new Date(), semanticScores = null, random = Math.random } = {}) {
+export function buildContext({ date = new Date(), semanticScores = null, random = Math.random, weather = null } = {}) {
   return {
     date,
     timeOfDay: getTimeOfDay(date),
     season: getSeason(date),
+    sun: getSunTimes(date),
+    weather,
     semanticScores,
     random,
   };

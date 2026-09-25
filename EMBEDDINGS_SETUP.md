@@ -70,12 +70,13 @@ node scripts/generate-embeddings.js
 
 ### For Events (Automatic)
 
-The event scraper (`scrapers/isthmus-ics-scraper.js`) now automatically:
-- ✅ Generates embeddings for NEW events
-- ✅ Reuses existing embeddings for UNCHANGED events
-- ✅ Regenerates embeddings if title/description changes
+Event ingestion (`api/_lib/events-ingest.js`, run by the daily cron and `scrapers/isthmus-ics-scraper.js`):
+- ✅ Keeps the embedding of unchanged events
+- ✅ Clears the embedding when a title or description changes
 
-**No duplicate embeddings!** The scraper checks if an event already has an embedding before calling the API.
+`scrapers/generate-embeddings.js` then runs in the same GitHub Actions workflow and fills in every missing embedding.
+
+**No duplicate embeddings!** Only events without an embedding are sent to the API.
 
 ---
 
@@ -207,7 +208,7 @@ Total: **Less than a penny per month!**
 
 - `api/_lib/embeddings.js` - Embedding generation utility
 - `api/recommendations.js` - Hybrid scoring algorithm
-- `scrapers/isthmus-ics-scraper.js` - Auto-generate event embeddings
+- `api/_lib/events-ingest.js` - Clears stale event embeddings on change
 - `scripts/generate-embeddings.js` - One-time place embeddings
 
 ---

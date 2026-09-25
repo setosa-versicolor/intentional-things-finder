@@ -3,6 +3,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const query = vi.fn();
 vi.mock('../api/_lib/db.js', () => ({ getPool: () => ({ query }) }));
 vi.mock('../api/_lib/embeddings.js', () => ({ generatePreferenceEmbedding: async () => null }));
+vi.mock('../api/_lib/weather.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  getHourlyForecast: async () => null,
+}));
 
 const { default: handler } = await import('../api/recommendations.js');
 

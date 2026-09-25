@@ -23,6 +23,7 @@ files doesn't need to run anything again.
 | `007_add_business_status.sql` | `004_add_business_status.sql` |
 | `008_add_seasonal_filtering.sql` | `005_add_seasonal_filtering.sql` |
 | `009_add_more_seasonal_restrictions.sql` | `006_add_more_seasonal_restrictions.sql` |
+| `010_keep_running_events_in_view.sql` | (new) |
 
 The recommendations API reads `seasons` and `best_times` straight from the
 `places` table, so seasonal filtering works without changing the

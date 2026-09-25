@@ -533,6 +533,12 @@ body.atmosphere-outside::before {
   color: var(--text-secondary);
 }
 
+.results-conditions {
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
 .results-notice {
   margin-top: var(--space-xs);
   font-size: 0.85rem;

@@ -70,6 +70,35 @@ export function isOpenAt(hours, checkTime = new Date()) {
 }
 
 /**
+ * When does the open period containing `checkTime` end?
+ * @returns {Date|null} closing time, or null if closed, 24/7 or unknown
+ */
+export function getClosingTime(hours, checkTime = new Date()) {
+  if (!hours || hours.always_open || !hours.periods) return null;
+
+  const { weekday, hour, minute } = getLocalParts(checkTime);
+  const now = weekday * 24 * 60 + hour * 60 + minute;
+
+  for (const period of hours.periods) {
+    if (!period.open || !period.close) continue;
+    const start = toMinuteOfWeek(period.open);
+    let end = toMinuteOfWeek(period.close);
+    if (start === null || end === null) continue;
+    if (end <= start) end += MINUTES_PER_WEEK;
+
+    for (const t of [now, now + MINUTES_PER_WEEK]) {
+      if (t >= start && t < end) {
+        const closing = new Date(checkTime.getTime() + (end - t) * 60 * 1000);
+        closing.setSeconds(0, 0);
+        return closing;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
  * Check if a place is open when you'd arrive and stays open long enough to enjoy it
  * @param {Object} hours
  * @param {Date} arrival
@@ -187,31 +216,4 @@ export function closesEarly(hours) {
 
   // If more than 50% of days close before 6 PM, consider it "closes early"
   return earlyCloses.length > closeTimes.length / 2;
-}
-
-/**
- * Get sunset time for Madison, WI (approximate)
- * @param {Date} date - Date to check
- * @returns {number} - Sunset time in HHMM format
- */
-export function getSunsetTime(date = new Date()) {
-  const month = date.getMonth(); // 0-11
-
-  // Approximate sunset times for Madison, WI throughout the year
-  const sunsetTimes = {
-    0: 1630,  // January
-    1: 1700,  // February
-    2: 1800,  // March
-    3: 1900,  // April
-    4: 1945,  // May
-    5: 2015,  // June
-    6: 2015,  // July
-    7: 1945,  // August
-    8: 1845,  // September
-    9: 1745,  // October
-    10: 1645, // November
-    11: 1615  // December
-  };
-
-  return sunsetTimes[month];
 }

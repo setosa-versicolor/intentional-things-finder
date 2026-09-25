@@ -3,6 +3,7 @@
  */
 
 import { CITY_TIMEZONE, getLocalParts, getTimeOfDay } from '../api/_lib/time.js';
+import { getClosingTime } from '../api/_lib/hours.js';
 
 const SOON_MS = 3 * 60 * 60 * 1000;
 
@@ -63,9 +64,18 @@ export function describeEventTime(startTime, endTime, now = new Date()) {
 }
 
 /**
- * "Today: 7:00 AM – 6:00 PM" or "Saturday: 7:00 AM – 6:00 PM"
+ * "Open until 9:00 PM", "Open 24 hours", or else today's posted hours
+ * ("Today: 7:00 AM – 6:00 PM", "Saturday: 7:00 AM – 6:00 PM")
  */
-export function describeHours(hoursToday, requestedDate = new Date(), now = new Date()) {
+export function describeHours(hoursToday, requestedDate = new Date(), now = new Date(), hours = null) {
+  if (hours?.always_open) return 'Open 24 hours';
+
+  const closesAt = getClosingTime(hours, requestedDate);
+  if (closesAt) {
+    const day = isSameMadisonDay(requestedDate, now) ? '' : `${weekdayFormatter.format(requestedDate)}: `;
+    return `${day}Open until ${timeFormatter.format(closesAt)}`;
+  }
+
   if (!hoursToday) return null;
   const day = isSameMadisonDay(requestedDate, now) ? 'Today' : weekdayFormatter.format(requestedDate);
   return `${day}: ${hoursToday}`;
@@ -108,7 +118,7 @@ export function toCard(activity, { requestedDate = new Date(), now = new Date() 
     walkMinutes: isEvent ? null : walk,
     when: isEvent
       ? describeEventTime(activity.start_time, activity.end_time, now)
-      : describeHours(activity.hours_today, requestedDate, now),
+      : describeHours(activity.hours_today, requestedDate, now, activity.hours),
     mapUrl: buildMapUrl(activity),
     detailsUrl: isEvent ? (activity.source_url || null) : null,
   };
@@ -127,4 +137,26 @@ export function greetingFor(requestedDate = new Date(), now = new Date()) {
     }[timeOfDay];
   }
   return `${weekdayFormatter.format(requestedDate)} ${timeOfDay}`;
+}
+
+/**
+ * "68° and mostly sunny · sunset 6:49 PM"
+ * Sunset is only mentioned while it's still ahead of the requested time.
+ */
+export function describeConditions(conditions, requestedDate = new Date()) {
+  if (!conditions) return null;
+  const parts = [];
+
+  const weather = conditions.weather;
+  if (weather && Number.isFinite(weather.temperature)) {
+    const sky = weather.shortForecast ? ` and ${weather.shortForecast.toLowerCase()}` : '';
+    parts.push(`${Math.round(weather.temperature)}°${sky}`);
+  }
+
+  if (conditions.sunset) {
+    const sunset = new Date(conditions.sunset);
+    if (sunset > requestedDate) parts.push(`sunset ${timeFormatter.format(sunset)}`);
+  }
+
+  return parts.length > 0 ? parts.join(' · ') : null;
 }
