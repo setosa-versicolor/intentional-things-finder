@@ -99,7 +99,7 @@ Open http://localhost:5173 and test the recommendation flow.
 - `src/api.js` - API utility functions
 
 ### Database
-- `migrations/001_initial_schema 2.sql` - Database schema
+- `migrations/001_initial_schema.sql` - Database schema
 - `migrations/002_seed_madison_places.sql` - 8 hand-curated places
 
 ### Automation

@@ -9,6 +9,7 @@ import https from 'https';
 import pg from 'pg';
 import dotenv from 'dotenv';
 import { generateActivityEmbedding, hasEmbedding } from '../api/_lib/embeddings.js';
+import { parseICSDate } from '../api/_lib/time.js';
 
 dotenv.config({ path: '.env.local' });
 dotenv.config();
@@ -136,24 +137,6 @@ function parseICS(icsContent) {
   }
 
   return events;
-}
-
-// Parse ICS date format (YYYYMMDDTHHMMSS or YYYYMMDD)
-function parseICSDate(dateStr) {
-  // Remove timezone info for simplicity
-  dateStr = dateStr.replace(/[TZ]/g, '').split(';')[0];
-
-  if (dateStr.length >= 8) {
-    const year = dateStr.substring(0, 4);
-    const month = dateStr.substring(4, 6);
-    const day = dateStr.substring(6, 8);
-    const hour = dateStr.substring(8, 10) || '00';
-    const minute = dateStr.substring(10, 12) || '00';
-
-    return new Date(`${year}-${month}-${day}T${hour}:${minute}:00`);
-  }
-
-  return null;
 }
 
 // Generate slug from title

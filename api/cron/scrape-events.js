@@ -7,6 +7,7 @@
 
 import https from 'https';
 import { getPool } from '../_lib/db.js';
+import { parseICSDate } from '../_lib/time.js';
 
 // Parse ICS format
 function parseICS(icsContent) {
@@ -54,19 +55,6 @@ function parseICS(icsContent) {
   }
 
   return events;
-}
-
-function parseICSDate(dateStr) {
-  dateStr = dateStr.replace(/[TZ]/g, '').split(';')[0];
-  if (dateStr.length >= 8) {
-    const year = dateStr.substring(0, 4);
-    const month = dateStr.substring(4, 6);
-    const day = dateStr.substring(6, 8);
-    const hour = dateStr.substring(8, 10) || '00';
-    const minute = dateStr.substring(10, 12) || '00';
-    return new Date(`${year}-${month}-${day}T${hour}:${minute}:00`);
-  }
-  return null;
 }
 
 function inferCategories(summary, description) {

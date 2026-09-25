@@ -1,4 +1,5 @@
--- Migration 006: Add more seasonal restrictions (refined)
+-- Migration 009: Add more seasonal restrictions (refined)
+-- (Previously named 006_add_more_seasonal_restrictions.sql)
 -- Only marking places as seasonal if they're ONLY available during specific seasons,
 -- not just "better" in those seasons
 

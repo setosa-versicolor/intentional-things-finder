@@ -47,6 +47,9 @@ npm run dev
 
 # Build for production
 npm run build
+
+# Run the tests (scoring, hours, time zones, cards)
+npm test
 ```
 
 ## Project Structure

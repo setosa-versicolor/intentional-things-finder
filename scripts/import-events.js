@@ -9,6 +9,7 @@
 import https from 'https';
 import pg from 'pg';
 import dotenv from 'dotenv';
+import { parseICSDate } from '../api/_lib/time.js';
 
 // Load .env.local first (Vercel env vars), then fall back to .env
 dotenv.config({ path: '.env.local' });
@@ -61,19 +62,6 @@ function parseICS(icsContent) {
   }
 
   return events;
-}
-
-function parseICSDate(dateStr) {
-  dateStr = dateStr.replace(/[TZ]/g, '').split(';')[0];
-  if (dateStr.length >= 8) {
-    const year = dateStr.substring(0, 4);
-    const month = dateStr.substring(4, 6);
-    const day = dateStr.substring(6, 8);
-    const hour = dateStr.substring(8, 10) || '00';
-    const minute = dateStr.substring(10, 12) || '00';
-    return new Date(`${year}-${month}-${day}T${hour}:${minute}:00`);
-  }
-  return null;
 }
 
 function inferCategories(summary, description) {

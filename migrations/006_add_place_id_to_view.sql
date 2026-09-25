@@ -1,4 +1,5 @@
--- Migration 003: Add google_place_id to activities view
+-- Migration 006: Add google_place_id to activities view
+-- (Previously named 003_add_place_id_to_view.sql)
 -- This updates the view to include the google_place_id for better Google Maps integration
 
 DROP VIEW IF EXISTS activities;

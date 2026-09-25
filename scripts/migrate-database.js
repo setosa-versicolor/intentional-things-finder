@@ -1,12 +1,14 @@
 /**
  * Database Migration Script for Vercel Postgres
  *
- * Run this after setting up Vercel Postgres:
+ * Sets up a FRESH database by running every file in migrations/ in order.
+ * Don't run this against a database that already has the schema.
+ *
  * node scripts/migrate-database.js
  */
 
 import pg from 'pg';
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import dotenv from 'dotenv';
@@ -29,23 +31,16 @@ async function runMigration() {
   console.log('🚀 Starting database migration...\n');
 
   try {
-    // Read migration files
-    const schema = readFileSync(
-      join(__dirname, '../migrations/001_initial_schema 2.sql'),
-      'utf8'
-    );
-    const seedData = readFileSync(
-      join(__dirname, '../migrations/002_seed_madison_places.sql'),
-      'utf8'
-    );
+    const migrationsDir = join(__dirname, '../migrations');
+    const files = readdirSync(migrationsDir)
+      .filter(f => /^\d{3}_.+\.sql$/.test(f))
+      .sort();
 
-    console.log('📋 Running schema migration...');
-    await pool.query(schema);
-    console.log('✅ Schema created successfully\n');
-
-    console.log('🌱 Seeding Madison places...');
-    await pool.query(seedData);
-    console.log('✅ Seed data inserted successfully\n');
+    for (const file of files) {
+      console.log(`📋 Running ${file}...`);
+      await pool.query(readFileSync(join(migrationsDir, file), 'utf8'));
+    }
+    console.log(`✅ Ran ${files.length} migrations\n`);
 
     // Verify
     const places = await pool.query('SELECT COUNT(*) FROM places');

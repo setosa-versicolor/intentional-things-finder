@@ -11,7 +11,7 @@ const API_URL = import.meta.env.VITE_API_URL ||
 /**
  * Get recommendations from the API
  * @param {Object} preferences - User preferences
- * @returns {Promise<Array>} - Array of recommendations
+ * @returns {Promise<{recommendations: Array, metadata: Object}|null>} - null if the API is unreachable
  */
 export async function getRecommendations(preferences) {
   try {
@@ -27,8 +27,7 @@ export async function getRecommendations(preferences) {
       throw new Error(`API error: ${response.statusText}`);
     }
 
-    const data = await response.json();
-    return data.recommendations;
+    return await response.json();
 
   } catch (error) {
     console.error('Failed to fetch recommendations:', error);

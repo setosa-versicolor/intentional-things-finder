@@ -139,12 +139,12 @@ export async function generatePreferenceEmbedding(preferences) {
     }
   }
 
-  // Energy level
+  // Energy level (despite the name, 0 = relaxing and 1 = active, matching vibe_active)
   if (preferences.activeToRelaxing !== undefined) {
     if (preferences.activeToRelaxing < 0.3) {
-      parts.push('active, energetic experience');
-    } else if (preferences.activeToRelaxing > 0.7) {
       parts.push('relaxing, low-energy activity');
+    } else if (preferences.activeToRelaxing > 0.7) {
+      parts.push('active, energetic experience');
     } else {
       parts.push('moderate energy activity');
     }

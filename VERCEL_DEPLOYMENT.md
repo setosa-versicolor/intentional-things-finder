@@ -69,7 +69,7 @@ node scripts/import-events.js
 
 1. Go to Vercel Dashboard → Storage → Your Postgres DB
 2. Click "Query" tab
-3. Copy contents of `migrations/001_initial_schema 2.sql`
+3. Copy contents of `migrations/001_initial_schema.sql`
 4. Paste and execute
 5. Copy contents of `migrations/002_seed_madison_places.sql`
 6. Paste and execute

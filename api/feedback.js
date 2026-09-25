@@ -12,12 +12,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { recommendationId, selectedId, selectedType, rating } = req.body;
+    const { recommendationId, selectedId, selectedType, rating } = req.body || {};
 
-    if (!recommendationId || !selectedId || !selectedType) {
+    if (!recommendationId || !selectedId || !['place', 'event'].includes(selectedType)) {
       return res.status(400).json({
         error: 'Missing required fields: recommendationId, selectedId, selectedType',
       });
+    }
+
+    const parsedRating = rating === null || rating === undefined ? null : parseInt(rating, 10);
+    if (parsedRating !== null && !(parsedRating >= 1 && parsedRating <= 5)) {
+      return res.status(400).json({ error: 'rating must be between 1 and 5' });
     }
 
     const pool = getPool();
@@ -29,11 +34,12 @@ export default async function handler(req, res) {
         selected_type = $2,
         feedback_rating = $3
       WHERE id = $4
-    `, [selectedId, selectedType, rating || null, recommendationId]);
+    `, [selectedId, selectedType, parsedRating, recommendationId]);
 
     res.status(200).json({ success: true });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Feedback error:', err);
+    res.status(500).json({ error: 'Could not record feedback' });
   }
 }

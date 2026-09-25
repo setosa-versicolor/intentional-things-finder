@@ -163,19 +163,20 @@ Every change should make the app feel more like that friend: aware of the weathe
 
 ## Part 4: Phased roadmap
 
-### Phase 0: Make it correct (about 1 week)
+### Phase 0: Make it correct ✅ (done)
 
-- [ ] Fix timezone handling in `db.js` and `hours.js` (use America/Chicago throughout). Add tests.
-- [ ] Move seasonal filtering into `api/recommendations.js` and add `seasons` to the `activities` view.
-- [ ] Honor the requested date/time for place hours, event windows, and the greeting.
-- [ ] Fix the local fallback field names, or remove the fallback in favor of a clear error state.
-- [ ] Render events correctly (time, venue, "starts in 40 min").
-- [ ] Add a loading state and disable double-submit.
-- [ ] Fix the date picker timezone.
-- [ ] Make the recommendation insert `RETURNING id` and wire up `sendFeedback`.
-- [ ] Remove the GitHub Pages workflow, delete `.env.production`, and renumber the migrations.
-- [ ] Merge `server.js` into the Vercel handlers, or have it import the shared module.
-- [ ] Add Vitest with scoring and hours tests, plus a lint and test GitHub Action.
+- [x] Fix timezone handling in `db.js` and `hours.js` (use America/Chicago throughout). Add tests.
+- [x] Move seasonal filtering into `api/recommendations.js`. It reads `seasons` from `places` via a join, so no view change is needed.
+- [x] Honor the requested date/time for place hours, event windows, and the greeting.
+- [x] Fix the local fallback. It now runs through the same ranking code as the API.
+- [x] Render events correctly (time, venue, "starts in 40 min").
+- [x] Add a loading state and disable double-submit.
+- [x] Fix the date picker timezone.
+- [x] Make the recommendation insert `RETURNING id` and wire up `sendFeedback`.
+- [x] Remove the GitHub Pages workflow, delete `.env.production`, and renumber the migrations.
+- [x] Make `server.js` serve the same handlers Vercel deploys.
+- [x] Add Vitest with scoring and hours tests, plus a test and build GitHub Action.
+- [x] *Found along the way:* fix the inverted quiet/lively scoring, the inverted energy wording in the embedding query, `best_times` never reaching the scorer, Google's Monday-first `weekday_text` being read Sunday-first, Places API (New) hours being stored without times, and ICS event times being read as UTC.
 
 ### Phase 1: Data foundation (about 1–2 weeks)
 
