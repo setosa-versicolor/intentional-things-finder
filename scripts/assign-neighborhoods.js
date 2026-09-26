@@ -92,6 +92,17 @@ export function detectNameField(features) {
 
 const titleCase = (s) => s.toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase());
 
+// Organizational words in association names that mean nothing on a card
+const ORG_SUFFIX = /[\s,]+(inc\.?|the|association|community|revitalization|foundation|league|assembly|resident'?s?|homeowners|home owners|property owners|owners|condominiums?|condominum)$/i;
+
+// What people actually call these areas
+const DISPLAY_NAMES = {
+  'Capitol Neighborhoods': 'Downtown',
+  'Campus Area': 'Campus',
+  'Schenk-Atwood-Starkweather-Yahara': 'Schenk-Atwood',
+  'Hill Farms, University': 'University Hill Farms',
+};
+
 /** "MARQUETTE NEIGHBORHOOD ASSOCIATION" -> "Marquette" */
 export function cleanName(name) {
   let cleaned = String(name).trim()
@@ -99,6 +110,9 @@ export function cleanName(name) {
     .replace(/\s+neighborhood$/i, '')
     .trim();
   if (cleaned === cleaned.toUpperCase()) cleaned = titleCase(cleaned);
+  // Suffixes stack ("Highlands Community Inc., The"), so strip until none are left
+  while (ORG_SUFFIX.test(cleaned)) cleaned = cleaned.replace(ORG_SUFFIX, '').trim();
+  cleaned = DISPLAY_NAMES[cleaned] || cleaned;
   return cleaned.slice(0, 100);
 }
 
