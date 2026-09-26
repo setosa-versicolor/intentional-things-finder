@@ -59,7 +59,7 @@ vercel link
 vercel env pull .env.local
 
 # Run migration
-node scripts/migrate-database.js
+node scripts/migrate.js --apply
 
 # Import events
 node scripts/import-events.js

@@ -60,6 +60,19 @@ jobs:
           node 608today-scraper.js || echo "⚠️ 608today scraper failed"
         continue-on-error: true
 
+      - name: Sort events (optional, needs OPENAI_API_KEY)
+        working-directory: scrapers
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          # Optional repository variables
+          EVENT_TRIAGE: ${{ vars.EVENT_TRIAGE }}
+          EVENT_TRIAGE_MODEL: ${{ vars.EVENT_TRIAGE_MODEL }}
+        run: |
+          echo "🧭 Sorting new and changed events..."
+          node triage-events.js || echo "⚠️ Event triage failed"
+        continue-on-error: true
+
       - name: Generate embeddings (optional)
         working-directory: scrapers
         env:

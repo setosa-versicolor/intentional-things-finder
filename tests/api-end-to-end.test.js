@@ -83,3 +83,25 @@ describe('API against real Postgres', () => {
     expect(rows[0]).toEqual({ selected_id: pick.id, selected_type: pick.type });
   });
 });
+
+describe('API and event triage', () => {
+  const eventSoon = (db, title, triage) => db.query(`
+    INSERT INTO events (city_id, title, slug, start_time, end_time, vibe_quiet, vibe_inside, vibe_active, source, source_id, is_active)
+    SELECT id, $1, $1, '2026-07-01T17:30:00Z', '2026-07-01T19:00:00Z', 0.5, 0.5, 0.5, 'test', $1, TRUE
+    FROM cities WHERE slug = 'madison'
+  `, [title]).then(() => triage && db.query('UPDATE events SET triage = $1::jsonb WHERE title = $2', [JSON.stringify(triage), title]));
+
+  it('never suggests events triaged as filler, and keeps the reason out of the response', async () => {
+    ({ pool } = await createTestDatabase());
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-07-01T17:00:00Z'));
+    await eventSoon(pool, 'Happy Hour Special', { score: 0.1, reason: 'drink special', tags: ['social'] });
+    await eventSoon(pool, 'Author Reading', { score: 0.9, reason: 'notable author', tags: ['lectures'] });
+
+    const res = await call(recommendations, { ...prefs, limit: 10 });
+    const titles = res.body.recommendations.map(r => r.title);
+    expect(titles).not.toContain('Happy Hour Special');
+    expect(titles).toContain('Author Reading');
+    expect(JSON.stringify(res.body)).not.toContain('notable author');
+  }, 60000);
+});

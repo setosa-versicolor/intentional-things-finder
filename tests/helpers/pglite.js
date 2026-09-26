@@ -13,17 +13,26 @@ import { earthdistance } from '@electric-sql/pglite/contrib/earthdistance';
 
 const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), '../../migrations');
 
-export async function createTestDatabase() {
+/**
+ * @param {Object} [options]
+ * @param {(file: string) => boolean} [options.only] - which migrations to apply (default: all)
+ */
+export async function createTestDatabase({ only = () => true } = {}) {
   const db = await PGlite.create({ extensions: { vector, cube, earthdistance } });
 
   const files = readdirSync(migrationsDir).filter(f => /^\d{3}_.+\.sql$/.test(f)).sort();
-  for (const file of files) {
+  for (const file of files.filter(only)) {
     await db.exec(readFileSync(join(migrationsDir, file), 'utf8'));
   }
 
-  // Minimal pg.Pool / pg.Client lookalike
+  // Minimal pg.Pool / pg.Client lookalike. Like node-pg, a query without
+  // parameters may contain several statements.
   const client = {
-    query: (text, params) => db.query(text, params),
+    query: async (text, params) => {
+      if (params && params.length > 0) return db.query(text, params);
+      const results = await db.exec(text);
+      return results[results.length - 1] || { rows: [] };
+    },
     release: () => {},
   };
   const pool = {

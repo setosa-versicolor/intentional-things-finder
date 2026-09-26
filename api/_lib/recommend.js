@@ -17,6 +17,9 @@ import { getSunTimes, isDark, isGoldenHour } from './sun.js';
 // Minimum time worth spending somewhere once you arrive
 export const MIN_STAY_MINUTES = 30;
 
+// Triaged events scoring below this are never suggested
+export const MIN_TRIAGE_SCORE = 0.35;
+
 const toNumber = (value, fallback) => {
   if (value === null || value === undefined || value === '') return fallback;
   const n = typeof value === 'number' ? value : parseFloat(value);
@@ -80,6 +83,9 @@ export function isEligible(activity, preferences, context) {
   if (!fitsTimeBudget(activity, timeAvailable)) return false;
 
   if (activity.type === 'event') {
+    // Triaged as not worth an outing (see api/_lib/event-triage.js)
+    const triageScore = toNumber(activity.triage_score, null);
+    if (triageScore !== null && triageScore < MIN_TRIAGE_SCORE) return false;
     return eventInWindow(activity, date, timeAvailable);
   }
 
@@ -138,6 +144,10 @@ export function scoreActivity(activity, preferences, context) {
   }
   breakdown.availabilityScore = round1(availabilityScore);
 
+  // How worth recommending a triaged event is (-2.4 to +8)
+  const triageScore = toNumber(activity.triage_score, null);
+  breakdown.triageScore = triageScore === null ? 0 : round1((triageScore - 0.5) * 16);
+
   // Weather and daylight (-45 to +14)
   breakdown.conditionsScore = conditionsScore(activity, context);
 
@@ -145,7 +155,8 @@ export function scoreActivity(activity, preferences, context) {
   breakdown.randomBonus = round1(random() * 5);
 
   score = breakdown.quietScore + breakdown.activeScore + tagScore + semanticScore +
-    breakdown.timeBonus + availabilityScore + breakdown.conditionsScore + breakdown.randomBonus;
+    breakdown.timeBonus + availabilityScore + breakdown.triageScore + breakdown.conditionsScore +
+    breakdown.randomBonus;
 
   return { score: round1(score), breakdown };
 }

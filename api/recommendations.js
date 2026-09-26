@@ -9,6 +9,7 @@ import { getTodaysHours } from './_lib/hours.js';
 import { buildContext, rankActivities } from './_lib/recommend.js';
 import { getDayOfWeek } from './_lib/time.js';
 import { getHourlyForecast, weatherAt } from './_lib/weather.js';
+import { applyTriage } from './_lib/event-triage.js';
 
 const MAX_LIMIT = 10;
 const MAX_DAYS_AHEAD = 14;
@@ -59,7 +60,8 @@ const ACTIVITIES_QUERY = `
     p.seasons,
     p.best_times,
     e.venue_address,
-    e.source_url
+    e.source_url,
+    __TRIAGE__
   FROM activities a
   LEFT JOIN places p ON a.type = 'place' AND p.id = a.id
   LEFT JOIN events e ON a.type = 'event' AND e.id = a.id
@@ -68,6 +70,20 @@ const ACTIVITIES_QUERY = `
     AND a.is_active = TRUE
     AND (a.business_status IS NULL OR a.business_status = 'OPERATIONAL')
 `;
+
+// Migration 011 adds events.triage; until it's applied, carry on without it.
+// A "yes" is cached for good, a "no" is rechecked every few minutes.
+let triageColumn = { present: false, checkedAt: 0 };
+async function activitiesQuery(pool) {
+  if (!triageColumn.present && Date.now() - triageColumn.checkedAt > 5 * 60 * 1000) {
+    const { rows } = await pool.query(`
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema = current_schema() AND table_name = 'events' AND column_name = 'triage'
+    `);
+    triageColumn = { present: rows.length > 0, checkedAt: Date.now() };
+  }
+  return ACTIVITIES_QUERY.replace('__TRIAGE__', triageColumn.present ? 'e.triage' : 'NULL::jsonb AS triage');
+}
 
 async function getSemanticScores(pool, cityId, preferences) {
   const semanticScores = new Map();
@@ -132,15 +148,16 @@ export default async function handler(req, res) {
     const cityId = cityResult.rows[0].id;
 
     const [activities, semanticScores, forecast] = await Promise.all([
-      pool.query(ACTIVITIES_QUERY, [cityId]),
+      activitiesQuery(pool).then(query => pool.query(query, [cityId])),
       getSemanticScores(pool, cityId, preferences),
       getHourlyForecast(),
     ]);
 
     const weather = weatherAt(forecast, requestedDate);
     const context = buildContext({ date: requestedDate, semanticScores, weather });
-    const ranked = rankActivities(activities.rows, preferences, context, limit)
-      .map(activity => ({
+    const candidates = activities.rows.map(row => applyTriage(row));
+    const ranked = rankActivities(candidates, preferences, context, limit)
+      .map(({ triage, ...activity }) => ({
         ...activity,
         hours_today: getTodaysHours(activity.hours, requestedDate),
       }));

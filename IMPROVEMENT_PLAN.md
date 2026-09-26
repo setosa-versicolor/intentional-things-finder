@@ -185,7 +185,7 @@ Every change should make the app feel more like that friend: aware of the weathe
 - [x] Neighborhoods from the City's Neighborhood Associations boundaries, replacing vague ones like "Madison". *You run:* `node scripts/assign-neighborhoods.js` (dry run), then `--apply`.
 - [x] Weather (NWS hourly forecast) and sun (sunset, dusk, golden hour) feed into ranking. The results header shows "68° and mostly sunny · sunset 6:49 PM".
 - [x] One ingestion module for every ICS feed, with bulk upserts and cross-source dedup. Add feeds without code changes via `EXTRA_ICS_FEEDS`. *You run:* check the library and UW feed URLs with `node scripts/vet-feeds.js <url>`, then add them.
-- [ ] Optional LLM triage of scraped events. Deferred until you decide how much AI-written copy should reach users.
+- [x] Model-based sorting of scraped events (option 1: sorting only). It scores each event, drops filler, and replaces keyword tags and vibes. Nothing model-written reaches users.
 - [x] *Found along the way:*
   - The Vercel cron overwrote the GitHub Action's event tags every day and never set `vibe_active`.
   - The `activities` view dropped all-day and running events 2 hours after they started (fixed by migration 010).
