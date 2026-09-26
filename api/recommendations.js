@@ -6,7 +6,7 @@
 import { getPool } from './_lib/db.js';
 import { generatePreferenceEmbedding } from './_lib/embeddings.js';
 import { getTodaysHours } from './_lib/hours.js';
-import { buildContext, rankActivities } from './_lib/recommend.js';
+import { buildContext, recommend, ROLES } from './_lib/recommend.js';
 import { getDayOfWeek } from './_lib/time.js';
 import { getHourlyForecast, weatherAt } from './_lib/weather.js';
 import { applyTriage } from './_lib/event-triage.js';
@@ -15,6 +15,21 @@ const MAX_LIMIT = 10;
 const MAX_DAYS_AHEAD = 14;
 
 const clamp01 = (n) => Math.min(1, Math.max(0, n));
+
+// Anywhere within ~60 km of the Capitol counts as "in Madison"
+const MADISON = { lat: 43.0747, lng: -89.3841 };
+function parseOrigin(origin) {
+  const lat = Number(origin?.lat);
+  const lng = Number(origin?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (Math.abs(lat - MADISON.lat) > 0.55 || Math.abs(lng - MADISON.lng) > 0.75) return null;
+  return { lat, lng };
+}
+
+// "place-12" / "event-7" keys from the client, capped so a request stays small
+const parseKeys = (keys, max = 200) => (Array.isArray(keys) ? keys : [])
+  .filter(k => typeof k === 'string' && /^(place|event)-\d+$/.test(k))
+  .slice(0, max);
 
 /**
  * Read the requested start time, defaulting to now and never earlier than now
@@ -134,7 +149,15 @@ export default async function handler(req, res) {
       activeToRelaxing: clamp01(activeToRelaxing),
       location: ['inside', 'outside'].includes(body.location) ? body.location : 'either',
       tags: Array.isArray(body.tags) ? body.tags.filter(t => typeof t === 'string') : [],
+      origin: parseOrigin(body.origin),
+      exclude: parseKeys(body.exclude),
+      recent: parseKeys(body.recent),
+      disliked: parseKeys(body.disliked),
     };
+    // Swapping one card: which slot, and which kinds are already on screen
+    const role = ROLES.includes(body.role) ? body.role : null;
+    const avoidCategories = (Array.isArray(body.avoidCategories) ? body.avoidCategories : [])
+      .filter(c => typeof c === 'string').slice(0, 10);
     const city = typeof body.city === 'string' ? body.city : 'madison';
     const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(body.limit, 10) || 3));
     const requestedDate = parseRequestedDate(body.date);
@@ -156,7 +179,7 @@ export default async function handler(req, res) {
     const weather = weatherAt(forecast, requestedDate);
     const context = buildContext({ date: requestedDate, semanticScores, weather });
     const candidates = activities.rows.map(row => applyTriage(row));
-    const ranked = rankActivities(candidates, preferences, context, limit)
+    const ranked = recommend(candidates, preferences, context, { count: limit, role, avoidCategories })
       .map(({ triage, ...activity }) => ({
         ...activity,
         hours_today: getTodaysHours(activity.hours, requestedDate),
@@ -196,9 +219,17 @@ export default async function handler(req, res) {
             id: a.id,
             score: a.score,
             rank: i + 1,
+            role: a.role,
           })),
+          // Where someone is and what they've done stays on their device
           preferences: {
-            ...preferences,
+            timeAvailable: preferences.timeAvailable,
+            quietToLively: preferences.quietToLively,
+            activeToRelaxing: preferences.activeToRelaxing,
+            location: preferences.location,
+            tags: preferences.tags,
+            usedLocation: preferences.origin !== null,
+            role,
             date: requestedDate.toISOString(),
           },
         }),
