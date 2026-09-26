@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { isOpenAt, isOpenForVisit, getTodaysHours } from '../api/_lib/hours.js';
-import { fromLocalTime } from '../api/_lib/time.js';
+import { isOpenAt, isOpenForVisit, getTodaysHours, getClosingTime } from '../api/_lib/hours.js';
+import { fromLocalTime, getLocalParts } from '../api/_lib/time.js';
 
 // Sep 2026: the 21st is a Monday, so the 25th is Friday, 26th Saturday, 27th Sunday
 const madison = (day, hour, minute = 0) => fromLocalTime(2026, 8, day, hour, minute);
@@ -105,5 +105,43 @@ describe('getClosingTime', () => {
     expect(getClosingTime(bar, madison(26, 23, 30)).toISOString()).toBe(madison(27, 2).toISOString());
     expect(getClosingTime(cafe, madison(25, 20))).toBeNull();
     expect(getClosingTime({ always_open: true })).toBeNull();
+  });
+});
+
+describe('hours stored without times (old Places API rows)', () => {
+  // The shape of 209 production rows on 2026-09-26: days, no times
+  const noTimes = (weekdayText) => ({
+    type: 'standard',
+    periods: [0, 1, 2, 3, 4, 5, 6].map(day => ({ open: { day }, close: { day } })),
+    always_open: false,
+    weekday_text: weekdayText,
+  });
+  const olbrich = noTimes([
+    'Monday: 10:00 AM – 4:00 PM', 'Tuesday: 10:00 AM – 4:00 PM', 'Wednesday: 10:00 AM – 4:00 PM',
+    'Thursday: 10:00 AM – 4:00 PM', 'Friday: 10:00 AM – 4:00 PM', 'Saturday: 10:00 AM – 4:00 PM', 'Sunday: Closed',
+  ]);
+  const bar = noTimes([
+    'Monday: Closed', 'Tuesday: 4:00 PM – 2:00 AM', 'Wednesday: 4:00 PM – 2:00 AM', 'Thursday: 4:00 PM – 2:00 AM',
+    'Friday: 11:00 AM – 2:00 PM, 5:00 – 11:00 PM', 'Saturday: Open 24 hours', 'Sunday: 4:00 PM – 2:00 AM',
+  ]);
+
+  it('reads the text hours instead of treating the day as open around the clock', () => {
+    expect(isOpenAt(olbrich, fromLocalTime(2026, 8, 26, 10, 30))).toBe(true); // Saturday morning
+    expect(isOpenAt(olbrich, fromLocalTime(2026, 8, 26, 23, 0))).toBe(false); // Saturday night
+    expect(isOpenAt(olbrich, fromLocalTime(2026, 8, 27, 12, 0))).toBe(false); // closed Sunday
+    const closes = getClosingTime(olbrich, fromLocalTime(2026, 8, 26, 10, 30));
+    expect(getLocalParts(closes)).toMatchObject({ hour: 16, minute: 0 });
+  });
+
+  it('handles past-midnight closing, split days, borrowed AM/PM and 24 hours', () => {
+    expect(isOpenAt(bar, fromLocalTime(2026, 8, 23, 1, 30))).toBe(true); // Wed 1:30am, from Tuesday
+    expect(isOpenAt(bar, fromLocalTime(2026, 8, 25, 15, 0))).toBe(false); // Friday between shifts
+    expect(isOpenAt(bar, fromLocalTime(2026, 8, 25, 17, 30))).toBe(true); // "5:00 – 11:00 PM" is 5pm
+    expect(isOpenAt(bar, fromLocalTime(2026, 8, 26, 4, 0))).toBe(true); // Saturday 24 hours
+    expect(isOpenAt(bar, fromLocalTime(2026, 8, 21, 12, 0))).toBe(false); // closed Monday
+  });
+
+  it('still assumes open when there is nothing readable at all', () => {
+    expect(isOpenAt(noTimes(null), fromLocalTime(2026, 8, 26, 23, 0))).toBe(true);
   });
 });
