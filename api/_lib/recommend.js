@@ -28,14 +28,65 @@ const toNumber = (value, fallback) => {
 
 const round1 = (n) => Math.round(n * 10) / 10;
 
+export const activityKey = (activity) => `${activity.type}-${activity.id}`;
+
+// ---------------------------------------------------------------------------
+// Getting there
+// ---------------------------------------------------------------------------
+
+/** Straight-line distance in km between two {lat, lng} points */
+export function distanceKm(a, b) {
+  const rad = (deg) => (deg * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+
+// Streets aren't straight lines
+const DETOUR = 1.25;
+const WALK_KMH = 4.8;
+const BIKE_KMH = 15;
+const DRIVE_KMH = 35;
+const PARKING_MINUTES = 5;
+const MAX_WALK_MINUTES = 20;
+const MAX_BIKE_MINUTES = 20;
+
 /**
- * Walk there, spend some time, walk back
+ * How someone would realistically get there from `origin`: walk if it's
+ * close, bike if it's a short ride, otherwise drive.
+ * @returns {{mode: 'walk'|'bike'|'drive', minutes: number}|null}
  */
-export function fitsTimeBudget(activity, timeAvailable) {
-  if (activity.type !== 'place') return true;
-  const walk = toNumber(activity.walk_minutes_from_center, null);
-  if (walk === null) return true;
-  return walk * 2 + MIN_STAY_MINUTES <= timeAvailable;
+export function travelFrom(origin, activity) {
+  const lat = toNumber(activity.lat, null);
+  const lng = toNumber(activity.lng, null);
+  if (!origin || lat === null || lng === null) return null;
+
+  const km = distanceKm(origin, { lat, lng }) * DETOUR;
+  const walk = Math.max(1, Math.round((km / WALK_KMH) * 60));
+  if (walk <= MAX_WALK_MINUTES) return { mode: 'walk', minutes: walk };
+  const bike = Math.round((km / BIKE_KMH) * 60);
+  if (bike <= MAX_BIKE_MINUTES) return { mode: 'bike', minutes: bike };
+  return { mode: 'drive', minutes: Math.round((km / DRIVE_KMH) * 60) + PARKING_MINUTES };
+}
+
+/**
+ * One-way minutes to get there: from the person when we know where they
+ * are, otherwise the stored walk from the Capitol. Null when unknown.
+ */
+export function travelMinutes(activity, origin) {
+  const travel = travelFrom(origin, activity);
+  if (travel) return travel.minutes;
+  return activity.type === 'place' ? toNumber(activity.walk_minutes_from_center, null) : null;
+}
+
+/**
+ * Get there, spend some time, get back
+ */
+export function fitsTimeBudget(activity, timeAvailable, origin = null) {
+  const minutes = travelMinutes(activity, origin);
+  if (minutes === null) return true;
+  return minutes * 2 + MIN_STAY_MINUTES <= timeAvailable;
 }
 
 export function matchesLocation(activity, location) {
@@ -76,11 +127,13 @@ export function eventInWindow(activity, windowStart, timeAvailable) {
  * Hard filters: anything that would make a suggestion wrong, not just weak
  */
 export function isEligible(activity, preferences, context) {
-  const { timeAvailable, location } = preferences;
+  const { timeAvailable, location, origin = null, exclude = [] } = preferences;
   const { date, season } = context;
 
+  // Already on screen, or swapped away
+  if (exclude.length > 0 && exclude.includes(activityKey(activity))) return false;
   if (!matchesLocation(activity, location)) return false;
-  if (!fitsTimeBudget(activity, timeAvailable)) return false;
+  if (!fitsTimeBudget(activity, timeAvailable, origin)) return false;
 
   if (activity.type === 'event') {
     // Triaged as not worth an outing (see api/_lib/event-triage.js)
@@ -137,12 +190,18 @@ export function scoreActivity(activity, preferences, context) {
 
   // Comfortable fit in the time available (up to 10 points)
   let availabilityScore = 0;
-  const walk = toNumber(activity.walk_minutes_from_center, null);
-  if (walk !== null) {
-    const timeRatio = (walk * 2 + MIN_STAY_MINUTES) / timeAvailable;
+  const travel = travelMinutes(activity, preferences.origin);
+  if (travel !== null) {
+    const timeRatio = (travel * 2 + MIN_STAY_MINUTES) / timeAvailable;
     if (timeRatio <= 0.8) availabilityScore = (1 - timeRatio) * 10;
   }
   breakdown.availabilityScore = round1(availabilityScore);
+
+  // Seen lately, or went and didn't love it (from this device's history)
+  const key = activityKey(activity);
+  breakdown.historyScore =
+    (preferences.disliked?.includes(key) ? -30 : 0) +
+    (preferences.recent?.includes(key) ? -12 : 0);
 
   // How worth recommending a triaged event is (-2.4 to +8)
   const triageScore = toNumber(activity.triage_score, null);
@@ -156,7 +215,7 @@ export function scoreActivity(activity, preferences, context) {
 
   score = breakdown.quietScore + breakdown.activeScore + tagScore + semanticScore +
     breakdown.timeBonus + availabilityScore + breakdown.triageScore + breakdown.conditionsScore +
-    breakdown.randomBonus;
+    breakdown.historyScore + breakdown.randomBonus;
 
   return { score: round1(score), breakdown };
 }
@@ -231,4 +290,75 @@ export function rankActivities(activities, preferences, context, limit = 3) {
     .filter(activity => activity.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
+}
+
+// ---------------------------------------------------------------------------
+// Card roles: three different kinds of idea, not three cafés
+// ---------------------------------------------------------------------------
+
+export const ROLES = ['sure-thing', 'something-different', 'wildcard'];
+
+// Places are grouped by their type (café, park, bar...); events are one group
+export const categoryOf = (activity) =>
+  activity.type === 'event' ? 'event' : (activity.category || 'place');
+
+// How much less a card may score and still win a slot for being different
+const WILDCARD_BONUS = 12;
+
+const isWild = (activity) =>
+  activity.type === 'event' ||
+  normalizeTags(activity.tags).includes('outside-my-norm') ||
+  toNumber(activity.triage_score, 0) >= 0.8;
+
+/**
+ * Choose cards from a best-first list so each one earns its slot:
+ *   1. sure-thing: the best match
+ *   2. something-different: the best match of another kind, ideally in another neighborhood
+ *   3. wildcard: an event, something off the beaten path, or at least a third kind
+ * Falls back to the next best when there isn't enough variety.
+ *
+ * `avoidCategories` fills one slot during a swap: skip the kinds already on screen.
+ */
+export function pickWithRoles(ranked, { count = 3, avoidCategories = [], role = null } = {}) {
+  const picks = [];
+  const pool = [...ranked];
+  const take = (activity, pickRole) => {
+    pool.splice(pool.indexOf(activity), 1);
+    picks.push({ ...activity, role: pickRole });
+  };
+  const used = () => new Set([...avoidCategories, ...picks.map(categoryOf)]);
+  const fresh = (a) => !used().has(categoryOf(a));
+
+  const roles = role ? [role] : ROLES.slice(0, count);
+  for (const slot of roles) {
+    if (pool.length === 0) break;
+    let pick;
+    if (slot === 'wildcard') {
+      const bonus = (a) => a.score + (isWild(a) ? WILDCARD_BONUS : 0) + (fresh(a) ? WILDCARD_BONUS / 2 : 0);
+      pick = [...pool].sort((a, b) => bonus(b) - bonus(a))[0];
+    } else if (slot === 'something-different') {
+      const hoods = new Set(picks.map(p => p.neighborhood).filter(Boolean));
+      pick = pool.find(a => fresh(a) && !hoods.has(a.neighborhood)) || pool.find(fresh);
+    } else {
+      pick = pool.find(fresh);
+    }
+    take(pick || pool[0], slot);
+  }
+
+  // More than three asked for: the rest in score order
+  while (picks.length < count && pool.length > 0 && !role) take(pool[0], null);
+  return picks;
+}
+
+/**
+ * Everything the API and the offline fallback need: eligible, scored,
+ * picked by role, with travel details for the card
+ */
+export function recommend(activities, preferences, context, options = {}) {
+  const ranked = rankActivities(activities, preferences, context, Infinity);
+  return pickWithRoles(ranked, options).map(activity => ({
+    ...activity,
+    category: categoryOf(activity),
+    travel: travelFrom(preferences.origin, activity),
+  }));
 }

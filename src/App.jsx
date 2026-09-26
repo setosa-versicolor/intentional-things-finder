@@ -1,116 +1,114 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import './App.css';
 import { getRecommendations as getRecommendationsAPI, sendFeedback } from './api';
-import { buildContext, rankActivities } from '../api/_lib/recommend.js';
+import { buildContext, recommend } from '../api/_lib/recommend.js';
 import { TAG_OPTIONS } from '../api/_lib/tags.js';
 import { FALLBACK_PLACES } from './fallbackPlaces.js';
 import { toCard, greetingFor, describeConditions } from './cards.js';
 import { getSunTimes } from '../api/_lib/sun.js';
+import { MOODS, DURATIONS, DEFAULT_PREFERENCES, preferencesForMood, minutesFor, startOptions } from './moods.js';
+import { createHistory, SOMEDAY_LIMIT } from './history.js';
+
+const history = createHistory();
 
 // Offline fallback: same ranking as the API, over a handful of favorites
-const getFallbackRecommendations = (preferences, date, count = 3) =>
-  rankActivities(FALLBACK_PLACES, preferences, buildContext({ date }), count);
+const getFallbackRecommendations = (request, date) =>
+  recommend(FALLBACK_PLACES, request, buildContext({ date }), {
+    count: request.limit || 3,
+    role: request.role,
+    avoidCategories: request.avoidCategories,
+  });
 
-// Components
-const VibeSlider = ({ label, leftLabel, rightLabel, value, onChange }) => (
-  <div className="vibe-slider">
-    <label className="slider-label">{label}</label>
-    <div className="slider-container">
-      <span className="slider-end-label">{leftLabel}</span>
-      <input
-        type="range"
-        min="0"
-        max="100"
-        value={value * 100}
-        onChange={(e) => onChange(e.target.value / 100)}
-        aria-label={`${label}: ${leftLabel} to ${rightLabel}`}
-        className="slider"
-      />
-      <span className="slider-end-label">{rightLabel}</span>
-    </div>
+const LOADING_LINES = [
+  'Asking a Willy Street regular…',
+  'Checking whether the Terrace chairs are out…',
+  'Consulting the Capitol squirrels…',
+  'Reading the lake…',
+];
+
+// ---------------------------------------------------------------------------
+// Where you are (optional; asked for only when you tap the button)
+// ---------------------------------------------------------------------------
+
+function useLocation() {
+  const [origin, setOrigin] = useState(null);
+  const [status, setStatus] = useState('checking'); // checking | off | asking | on | denied | unavailable
+
+  const locate = useCallback(() => {
+    if (!navigator.geolocation) {
+      setStatus('unavailable');
+      return;
+    }
+    setStatus('asking');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setOrigin({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setStatus('on');
+      },
+      (err) => setStatus(err.code === err.PERMISSION_DENIED ? 'denied' : 'unavailable'),
+      { maximumAge: 10 * 60 * 1000, timeout: 10000 }
+    );
+  }, []);
+
+  // Already allowed on an earlier visit: use it without asking again
+  useEffect(() => {
+    let cancelled = false;
+    const check = navigator.permissions?.query({ name: 'geolocation' });
+    if (!check) {
+      setStatus('off');
+      return;
+    }
+    check
+      .then(result => {
+        if (cancelled) return;
+        if (result.state === 'granted') locate();
+        else setStatus('off');
+      })
+      .catch(() => !cancelled && setStatus('off'));
+    return () => { cancelled = true; };
+  }, [locate]);
+
+  return { origin, status, locate };
+}
+
+// ---------------------------------------------------------------------------
+// Small pieces
+// ---------------------------------------------------------------------------
+
+const ChipGroup = ({ label, options, value, onChange, className = '' }) => (
+  <div className={`chip-group ${className}`} role="group" aria-label={label}>
+    {options.map(opt => (
+      <button
+        key={opt.id}
+        type="button"
+        aria-pressed={value === opt.id}
+        className={`chip ${value === opt.id ? 'active' : ''}`}
+        onClick={() => onChange(value === opt.id ? null : opt.id)}
+      >
+        {opt.label}
+      </button>
+    ))}
   </div>
 );
 
-const TimeSelector = ({ value, onChange }) => {
-  const options = [
-    { minutes: 60, label: "1 hour" },
-    { minutes: 90, label: "90 min" },
-    { minutes: 120, label: "2 hours" },
-    { minutes: 180, label: "3 hours" },
-    { minutes: 240, label: "half day" }
-  ];
-  
+const VibeSlider = ({ label, leftLabel, rightLabel, value, onChange }) => {
+  const describe = (v) => (v < 0.34 ? leftLabel : v > 0.66 ? rightLabel : 'in between');
   return (
-    <div className="time-selector">
-      <label className="selector-label">Time you have</label>
-      <div className="time-options">
-        {options.map(opt => (
-          <button
-            key={opt.minutes}
-            type="button"
-            aria-pressed={value === opt.minutes}
-            className={`time-option ${value === opt.minutes ? 'active' : ''}`}
-            onClick={() => onChange(opt.minutes)}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const LocationSelector = ({ value, onChange }) => {
-  const options = [
-    { value: 'inside', label: 'Inside' },
-    { value: 'outside', label: 'Outside' },
-    { value: 'either', label: 'Either' }
-  ];
-
-  return (
-    <div className="location-selector">
-      <label className="selector-label">Location</label>
-      <div className="radio-options">
-        {options.map(opt => (
-          <button
-            key={opt.value}
-            type="button"
-            aria-pressed={value === opt.value}
-            className={`radio-option ${value === opt.value ? 'active' : ''}`}
-            onClick={() => onChange(opt.value)}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const TagSelector = ({ selectedTags, onChange }) => {
-  const toggleTag = (tag) => {
-    if (selectedTags.includes(tag)) {
-      onChange(selectedTags.filter(t => t !== tag));
-    } else {
-      onChange([...selectedTags, tag]);
-    }
-  };
-
-  return (
-    <div className="tag-selector">
-      <label className="selector-label">Tags (select any that apply)</label>
-      <div className="tag-options">
-        {TAG_OPTIONS.map(({ tag, label }) => (
-          <button
-            key={tag}
-            type="button"
-            aria-pressed={selectedTags.includes(tag)}
-            className={`tag-option ${selectedTags.includes(tag) ? 'active' : ''}`}
-            onClick={() => toggleTag(tag)}
-          >
-            {label}
-          </button>
-        ))}
+    <div className="vibe-slider">
+      <label className="slider-label">{label}</label>
+      <div className="slider-container">
+        <span className="slider-end-label" aria-hidden="true">{leftLabel}</span>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={Math.round(value * 100)}
+          onChange={(e) => onChange(e.target.value / 100)}
+          aria-label={label}
+          aria-valuetext={describe(value)}
+          className="slider"
+        />
+        <span className="slider-end-label" aria-hidden="true">{rightLabel}</span>
       </div>
     </div>
   );
@@ -125,320 +123,372 @@ const toLocalInputValue = (date) => {
 
 const MAX_DAYS_AHEAD = 14;
 
-const DateTimeSelector = ({ value, onChange }) => {
-  const [expanded, setExpanded] = useState(false);
-
-  const formatDateTime = (date) => {
-    if (!date) return 'Now';
-
-    // Format as "Mon, Jan 15, 3:00 PM"
-    return new Date(date).toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit'
-    });
-  };
-
-  const getMaxDate = () => {
-    const max = new Date();
-    max.setDate(max.getDate() + MAX_DAYS_AHEAD);
-    return max;
-  };
-
-  const handleDateChange = (e) => {
-    if (!e.target.value) return;
-    const selectedDate = new Date(e.target.value); // parsed as local time
-    const maxDate = getMaxDate();
-
-    if (selectedDate <= new Date()) {
-      onChange(null); // Reset to "Now"
-    } else if (selectedDate > maxDate) {
-      onChange(maxDate.toISOString());
-    } else {
-      onChange(selectedDate.toISOString());
-    }
-  };
+const TuneDrawer = ({ prefs, onPrefs, customDate, onCustomDate }) => {
+  const set = (patch) => onPrefs({ ...prefs, ...patch });
+  const toggleTag = (tag) => set({
+    tags: prefs.tags.includes(tag) ? prefs.tags.filter(t => t !== tag) : [...prefs.tags, tag],
+  });
+  const maxDate = new Date(Date.now() + MAX_DAYS_AHEAD * 24 * 60 * 60 * 1000);
 
   return (
-    <div className="datetime-selector">
-      <label className="selector-label">When?</label>
-      <div className="datetime-container">
-        <button
-          type="button"
-          aria-expanded={expanded}
-          className={`datetime-display ${!value ? 'active' : ''}`}
-          onClick={() => setExpanded(!expanded)}
-        >
-          {formatDateTime(value)}
-          <span className="datetime-arrow" aria-hidden="true">{expanded ? '▲' : '▼'}</span>
-        </button>
+    <details className="tune">
+      <summary>Tune it</summary>
+      <div className="tune-body">
+        <div className="vibes-section">
+          <VibeSlider label="Atmosphere" leftLabel="quiet" rightLabel="lively"
+            value={prefs.quietToLively} onChange={v => set({ quietToLively: v })} />
+          <VibeSlider label="Energy" leftLabel="relaxing" rightLabel="active"
+            value={prefs.activeToRelaxing} onChange={v => set({ activeToRelaxing: v })} />
+        </div>
 
-        {expanded && (
-          <div className="datetime-picker">
-            <input
-              type="datetime-local"
-              aria-label="Start time"
-              value={toLocalInputValue(value || new Date())}
-              onChange={handleDateChange}
-              min={toLocalInputValue(new Date())}
-              max={toLocalInputValue(getMaxDate())}
-              className="datetime-input"
-            />
-            <button
-              type="button"
-              className="datetime-reset"
-              onClick={() => {
-                onChange(null);
-                setExpanded(false);
-              }}
-            >
-              Reset to Now
-            </button>
+        <div className="tune-row">
+          <span className="selector-label">Inside or out</span>
+          <ChipGroup
+            label="Inside or out"
+            options={[{ id: 'inside', label: 'Inside' }, { id: 'outside', label: 'Outside' }]}
+            value={prefs.location === 'either' ? null : prefs.location}
+            onChange={v => set({ location: v || 'either' })}
+          />
+        </div>
+
+        <div className="tune-row">
+          <span className="selector-label">Good for</span>
+          <div className="chip-group" role="group" aria-label="Good for">
+            {TAG_OPTIONS.map(({ tag, label }) => (
+              <button key={tag} type="button" aria-pressed={prefs.tags.includes(tag)}
+                className={`chip chip-soft ${prefs.tags.includes(tag) ? 'active' : ''}`}
+                onClick={() => toggleTag(tag)}>
+                {label}
+              </button>
+            ))}
           </div>
-        )}
+        </div>
+
+        <div className="tune-row">
+          <label className="selector-label" htmlFor="custom-date">A specific time</label>
+          <div className="datetime-row">
+            <input
+              id="custom-date"
+              type="datetime-local"
+              className="datetime-input"
+              value={customDate ? toLocalInputValue(customDate) : ''}
+              min={toLocalInputValue(new Date())}
+              max={toLocalInputValue(maxDate)}
+              onChange={(e) => {
+                if (!e.target.value) return onCustomDate(null);
+                const picked = new Date(e.target.value);
+                onCustomDate(picked <= new Date() ? null : picked > maxDate ? maxDate : picked);
+              }}
+            />
+            {customDate && (
+              <button type="button" className="text-button" onClick={() => onCustomDate(null)}>Clear</button>
+            )}
+          </div>
+        </div>
       </div>
-    </div>
+    </details>
   );
 };
 
-const RecommendationCard = ({ card, index, onGo }) => (
-  <article className="recommendation" style={{ '--delay': `${index * 0.15}s` }}>
+const RecommendationCard = ({ card, index, saved, swapping, onGo, onSwap, onSave, onShare }) => (
+  <article className={`recommendation ${swapping ? 'is-swapping' : ''}`} style={{ '--delay': `${index * 0.12}s` }}
+    aria-labelledby={`rec-${card.key}`}>
     <header className="rec-header">
-      <span className="rec-type">{card.label}</span>
-      {card.walkMinutes !== null && (
-        <span className="rec-walk">{card.walkMinutes} min walk from the Square</span>
-      )}
+      <span className="rec-role">{card.roleLabel || card.label}</span>
+      {card.roleLabel && <span className="rec-type">{card.label}</span>}
     </header>
 
-    <h2 className="rec-name">{card.title}</h2>
+    <h2 className="rec-name" id={`rec-${card.key}`}>{card.title}</h2>
     {card.neighborhood && <p className="rec-neighborhood">{card.neighborhood}</p>}
+    {card.status && <p className="rec-status">{card.status}</p>}
+
+    {card.chips.length > 0 && (
+      <ul className="rec-chips" aria-label="Right now">
+        {card.chips.map(chip => <li key={chip}>{chip}</li>)}
+      </ul>
+    )}
 
     {card.story && <p className="rec-story">{card.story}</p>}
-
     {card.nudge && (
       <div className="rec-nudge">
         <p>{card.nudge}</p>
       </div>
     )}
 
-    <footer className="rec-footer">
-      <span className="rec-hours">{card.when || ''}</span>
-      <span className="rec-links">
-        {card.detailsUrl && (
-          <a
-            href={card.detailsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rec-map-link"
-            onClick={() => onGo(card)}
-          >
-            Details
-          </a>
-        )}
-        <a
-          href={card.mapUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="rec-map-link"
-          onClick={() => onGo(card)}
-        >
-          Open in Maps →
-        </a>
-      </span>
+    <footer className="rec-actions">
+      <a className="action action-go" href={card.mapUrl} target="_blank" rel="noopener noreferrer"
+        onClick={() => onGo(card)}>
+        Go <span aria-hidden="true">→</span>
+      </a>
+      <button type="button" className="action" onClick={() => onSwap(card)} disabled={swapping}
+        aria-label={`Swap ${card.title} for something else`}>
+        {swapping ? 'Swapping…' : 'Swap'}
+      </button>
+      <button type="button" className="action" aria-pressed={saved} onClick={() => onSave(card)}>
+        {saved ? 'Saved' : 'Save'}
+      </button>
+      <button type="button" className="action" onClick={() => onShare(card)}>Share</button>
+      {card.detailsUrl && (
+        <a className="action" href={card.detailsUrl} target="_blank" rel="noopener noreferrer">Details</a>
+      )}
     </footer>
   </article>
 );
 
-const InputScreen = ({ onSubmit, loading }) => {
-  const [timeAvailable, setTimeAvailable] = useState(90);
-  const [quietToLively, setQuietToLively] = useState(0.5);
-  const [activeToRelaxing, setActiveToRelaxing] = useState(0.5);
-  const [location, setLocation] = useState('either');
-  const [selectedTags, setSelectedTags] = useState([]);
-  const [dateTime, setDateTime] = useState(null); // null = "Now"
+const DidYouGo = ({ entry, onAnswer }) => (
+  <section className="ask-banner" aria-label="How did it go?">
+    <p>Did you make it to <strong>{entry.title}</strong>?</p>
+    <div className="ask-actions">
+      <button type="button" className="chip" onClick={() => onAnswer('loved')}>
+        <span aria-hidden="true">👍</span> Loved it
+      </button>
+      <button type="button" className="chip" onClick={() => onAnswer('meh')}>
+        <span aria-hidden="true">😐</span> It was fine
+      </button>
+      <button type="button" className="chip" onClick={() => onAnswer('skipped')}>Didn't go</button>
+    </div>
+  </section>
+);
 
-  // Apply atmospheric effect based on location selection
-  useEffect(() => {
-    document.body.classList.remove('atmosphere-inside', 'atmosphere-outside');
+// ---------------------------------------------------------------------------
+// The app: picks for right now on open, refine if you want to
+// ---------------------------------------------------------------------------
 
-    if (location === 'inside') {
-      document.body.classList.add('atmosphere-inside');
-    } else if (location === 'outside') {
-      document.body.classList.add('atmosphere-outside');
-    }
+function App() {
+  const { origin, status: locationStatus, locate } = useLocation();
 
-    // Cleanup on unmount
-    return () => {
-      document.body.classList.remove('atmosphere-inside', 'atmosphere-outside');
+  const [mood, setMood] = useState(null);
+  const [prefs, setPrefs] = useState(DEFAULT_PREFERENCES);
+  const [duration, setDuration] = useState('2h');
+  const [start, setStart] = useState('now');
+  const [customDate, setCustomDate] = useState(null);
+
+  const [picks, setPicks] = useState([]);
+  const [meta, setMeta] = useState({ requestedDate: new Date(), conditions: null, recommendationId: null });
+  const [loading, setLoading] = useState(true);
+  const [usingFallback, setUsingFallback] = useState(false);
+  const [swapping, setSwapping] = useState(null);
+  const [swappedAway, setSwappedAway] = useState([]);
+  const [notice, setNotice] = useState('');
+  const [announcement, setAnnouncement] = useState('');
+  const [question, setQuestion] = useState(() => history.pendingQuestion());
+  const [someday, setSomeday] = useState(() => history.load().someday);
+  const [loadingLine] = useState(() => LOADING_LINES[Math.floor(Math.random() * LOADING_LINES.length)]);
+
+  const starts = useMemo(() => startOptions(new Date()), []);
+  const startDate = customDate || starts.find(s => s.id === start)?.date || null;
+
+  // One request shape for full refreshes and single-card swaps
+  const baseRequest = useCallback((date) => ({
+    ...prefs,
+    timeAvailable: minutesFor(duration, date),
+    date: date.toISOString(),
+    origin,
+    ...history.rankingHints(),
+  }), [prefs, duration, origin]);
+
+  const fetchPicks = useCallback(async (request, date) => {
+    const response = await getRecommendationsAPI(request);
+    if (response) return { response, fallback: false };
+    return {
+      response: {
+        recommendations: getFallbackRecommendations(request, date),
+        metadata: { conditions: { sunset: getSunTimes(date).sunset.toISOString() } },
+      },
+      fallback: true,
     };
-  }, [location]);
+  }, []);
 
-  const handleSubmit = () => {
-    if (loading) return;
-    onSubmit({
-      timeAvailable,
-      quietToLively,
-      activeToRelaxing,
-      location,
-      tags: selectedTags,
-      date: dateTime || new Date().toISOString() // Send current time if "Now"
-    });
+  // Refresh whenever a choice changes (after location has had a moment to resolve)
+  const requestId = useRef(0);
+  useEffect(() => {
+    if (locationStatus === 'checking' || locationStatus === 'asking') return undefined;
+    const id = ++requestId.current;
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      const date = startDate || new Date();
+      const { response, fallback } = await fetchPicks(baseRequest(date), date);
+      if (id !== requestId.current) return; // a newer request superseded this one
+
+      const recs = response.recommendations || [];
+      setPicks(recs);
+      setSwappedAway([]);
+      setMeta({
+        requestedDate: response.metadata?.requestedAt ? new Date(response.metadata.requestedAt) : date,
+        conditions: response.metadata?.conditions ?? null,
+        recommendationId: response.metadata?.recommendationId ?? null,
+      });
+      setUsingFallback(fallback);
+      setLoading(false);
+      setAnnouncement(recs.length ? `${recs.length} new ideas: ${recs.map(r => r.title).join(', ')}` : 'Nothing fits right now');
+      history.recordShown(recs.map(r => `${r.type}-${r.id}`));
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [baseRequest, fetchPicks, startDate, locationStatus]);
+
+  const now = new Date();
+  const cards = picks.map(rec => toCard(rec, { requestedDate: meta.requestedDate, now, conditions: meta.conditions }));
+  const flash = (text) => {
+    setNotice(text);
+    setTimeout(() => setNotice(n => (n === text ? '' : n)), 4000);
   };
 
+  const chooseMood = (id) => {
+    setMood(id);
+    setPrefs(id ? preferencesForMood(id) : DEFAULT_PREFERENCES);
+  };
+
+  const tunePrefs = (next) => {
+    setMood(null); // hand-tuned now
+    setPrefs(next);
+  };
+
+  const handleGo = (card) => {
+    history.recordGo(card);
+    if (meta.recommendationId) sendFeedback(meta.recommendationId, card.id, card.type);
+  };
+
+  const handleSwap = async (card) => {
+    setSwapping(card.key);
+    const date = meta.requestedDate;
+    const away = [...swappedAway, card.key];
+    const others = cards.filter(c => c.key !== card.key);
+    const { response } = await fetchPicks({
+      ...baseRequest(date),
+      limit: 1,
+      role: card.role,
+      exclude: [...cards.map(c => c.key), ...away],
+      avoidCategories: others.map(c => c.category),
+    }, date);
+    const [replacement] = response.recommendations || [];
+    setSwapping(null);
+    if (!replacement) {
+      flash("That's the last good idea for this slot. Try another mood?");
+      return;
+    }
+    setSwappedAway(away);
+    setPicks(current => current.map(p => (`${p.type}-${p.id}` === card.key ? replacement : p)));
+    setAnnouncement(`Swapped for ${replacement.title}`);
+  };
+
+  const handleSave = (card) => {
+    if (!history.toggleSomeday(card)) {
+      flash(`Someday holds ${SOMEDAY_LIMIT}. Do one of those first.`);
+      return;
+    }
+    setSomeday(history.load().someday);
+  };
+
+  const handleShare = async (card) => {
+    const text = `${card.shareText}\n${card.mapUrl}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: card.title, text: card.shareText, url: card.mapUrl });
+      } else {
+        await navigator.clipboard.writeText(text);
+        flash('Copied. Send it to someone.');
+      }
+    } catch (err) {
+      if (err?.name !== 'AbortError') flash("Couldn't share that one.");
+    }
+  };
+
+  const answerQuestion = (verdict) => {
+    history.recordVerdict(question.key, verdict);
+    setQuestion(history.pendingQuestion());
+    flash(verdict === 'loved' ? 'Noted. More like that.' : verdict === 'meh' ? "Noted. We'll steer elsewhere." : 'Next time.');
+  };
+
+  const greeting = greetingFor(meta.requestedDate, now);
+  const conditionsLine = describeConditions(meta.conditions, meta.requestedDate);
+  const savedKeys = new Set(someday.map(s => s.key));
+
   return (
-    <div className="input-screen">
-      <header className="app-header">
-        <h1 className="app-title">Discover Madison</h1>
-        <p className="app-subtitle">Find your next intentional experience</p>
+    <main className="app">
+      <header className="home-header">
+        <p className="eyebrow">Discover Madison</p>
+        <h1 className="home-greeting">{greeting}. Three ideas:</h1>
+        {conditionsLine && <p className="results-conditions">{conditionsLine}</p>}
+        <p className="location-line">
+          {locationStatus === 'on' && 'Times are from where you are.'}
+          {(locationStatus === 'off' || locationStatus === 'unavailable') && (
+            <button type="button" className="text-button" onClick={locate}>
+              Use my location for real walking times
+            </button>
+          )}
+          {locationStatus === 'asking' && 'Finding you…'}
+          {locationStatus === 'denied' && 'Location is off, so times are from the Capitol.'}
+        </p>
       </header>
 
-      <div className="input-form">
-        <TimeSelector value={timeAvailable} onChange={setTimeAvailable} />
+      {question && <DidYouGo entry={question} onAnswer={answerQuestion} />}
 
-        <div className="vibes-section">
-          <VibeSlider
-            label="Atmosphere"
-            leftLabel="quiet"
-            rightLabel="lively"
-            value={quietToLively}
-            onChange={setQuietToLively}
-          />
-
-          <VibeSlider
-            label="Energy"
-            leftLabel="relaxing"
-            rightLabel="active"
-            value={activeToRelaxing}
-            onChange={setActiveToRelaxing}
-          />
+      <section className="controls" aria-label="What are you in the mood for?">
+        <ChipGroup label="Mood" options={MOODS} value={mood} onChange={chooseMood} className="moods" />
+        <div className="time-dial">
+          <span className="dial-word">I have</span>
+          <ChipGroup label="How long" options={DURATIONS} value={duration} onChange={v => setDuration(v || '2h')} />
+          {!customDate && (
+            <>
+              <span className="dial-word">starting</span>
+              <ChipGroup label="Starting" options={starts} value={start} onChange={v => setStart(v || 'now')} />
+            </>
+          )}
         </div>
+      </section>
 
-        <LocationSelector value={location} onChange={setLocation} />
+      <p className="sr-only" aria-live="polite">{announcement}</p>
+      {notice && <p className="notice" role="status">{notice}</p>}
+      {usingFallback && (
+        <p className="results-notice">Couldn't reach the full list just now, so here are a few old favorites.</p>
+      )}
 
-        <TagSelector selectedTags={selectedTags} onChange={setSelectedTags} />
+      <section className={`recommendations ${loading ? 'is-loading' : ''}`} aria-busy={loading}>
+        {loading && <p className="loading-line">{loadingLine}</p>}
+        {!loading && cards.length === 0 && (
+          <div className="no-results">
+            <p>Honestly? Go home and read.</p>
+            <p className="no-results-hint">Or give yourself a longer window, or try another mood.</p>
+          </div>
+        )}
+        {cards.map((card, index) => (
+          <RecommendationCard
+            key={card.key}
+            card={card}
+            index={index}
+            saved={savedKeys.has(card.key)}
+            swapping={swapping === card.key}
+            onGo={handleGo}
+            onSwap={handleSwap}
+            onSave={handleSave}
+            onShare={handleShare}
+          />
+        ))}
+      </section>
 
-        <DateTimeSelector value={dateTime} onChange={setDateTime} />
+      <TuneDrawer prefs={prefs} onPrefs={tunePrefs} customDate={customDate} onCustomDate={setCustomDate} />
 
-        <button
-          type="button"
-          className="find-button"
-          onClick={handleSubmit}
-          disabled={loading}
-          aria-busy={loading}
-        >
-          {loading ? 'Finding something good…' : 'Find something good'}
-        </button>
-      </div>
+      {someday.length > 0 && (
+        <details className="someday">
+          <summary>Someday ({someday.length}/{SOMEDAY_LIMIT})</summary>
+          <ul>
+            {someday.map(s => (
+              <li key={s.key}>
+                <a href={s.mapUrl} target="_blank" rel="noopener noreferrer">{s.title}</a>
+                <button type="button" className="text-button" onClick={() => handleSave(s)}
+                  aria-label={`Remove ${s.title} from Someday`}>
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
 
       <footer className="input-footer">
         <p>Three suggestions, max. No scrolling.</p>
       </footer>
-    </div>
-  );
-};
-
-const ResultsScreen = ({ recommendations, requestedDate, conditions, usingFallback, onBack, onGo }) => {
-  const now = new Date();
-  const greeting = greetingFor(requestedDate, now);
-  const conditionsLine = describeConditions(conditions, requestedDate);
-  const cards = recommendations.map(rec => toCard(rec, { requestedDate, now }));
-
-  return (
-    <div className="results-screen">
-      <header className="results-header">
-        <button type="button" className="back-button" onClick={onBack}>← Different mood</button>
-        <p className="results-greeting">{greeting}, here's what fits:</p>
-        {conditionsLine && <p className="results-conditions">{conditionsLine}</p>}
-        {usingFallback && (
-          <p className="results-notice">
-            Couldn't reach the full list just now, so here are a few old favorites.
-          </p>
-        )}
-      </header>
-
-      <div className="recommendations">
-        {cards.length > 0 ? (
-          cards.map((card, index) => (
-            <RecommendationCard key={card.key} card={card} index={index} onGo={onGo} />
-          ))
-        ) : (
-          <div className="no-results">
-            <p>Nothing quite matches right now.</p>
-            <p className="no-results-hint">Try loosening your constraints or extending your time.</p>
-          </div>
-        )}
-      </div>
-
-      <footer className="results-footer">
-        <p className="results-cta">Pick one. Go now.</p>
-      </footer>
-    </div>
-  );
-};
-
-function App() {
-  const [screen, setScreen] = useState('input');
-  const [recommendations, setRecommendations] = useState([]);
-  const [recommendationId, setRecommendationId] = useState(null);
-  const [requestedDate, setRequestedDate] = useState(() => new Date());
-  const [conditions, setConditions] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [usingFallback, setUsingFallback] = useState(false);
-
-  const handleSubmit = async (preferences) => {
-    setLoading(true);
-    const date = new Date(preferences.date);
-
-    // Returns null if the API is unreachable
-    const response = await getRecommendationsAPI(preferences);
-
-    if (response) {
-      setRecommendations(response.recommendations || []);
-      setRecommendationId(response.metadata?.recommendationId ?? null);
-      setRequestedDate(response.metadata?.requestedAt ? new Date(response.metadata.requestedAt) : date);
-      setConditions(response.metadata?.conditions ?? null);
-      setUsingFallback(false);
-    } else {
-      setRecommendations(getFallbackRecommendations(preferences, date));
-      setRecommendationId(null);
-      setRequestedDate(date);
-      setConditions({ sunset: getSunTimes(date).sunset.toISOString() });
-      setUsingFallback(true);
-    }
-
-    setLoading(false);
-    setScreen('results');
-  };
-
-  const handleGo = (card) => {
-    if (recommendationId) {
-      sendFeedback(recommendationId, card.id, card.type);
-    }
-  };
-
-  const handleBack = () => {
-    setScreen('input');
-    setRecommendations([]);
-    setRecommendationId(null);
-  };
-
-  return (
-    <div className="app">
-      {screen === 'input' ? (
-        <InputScreen onSubmit={handleSubmit} loading={loading} />
-      ) : (
-        <ResultsScreen
-          recommendations={recommendations}
-          requestedDate={requestedDate}
-          conditions={conditions}
-          usingFallback={usingFallback}
-          onBack={handleBack}
-          onGo={handleGo}
-        />
-      )}
-    </div>
+    </main>
   );
 }
 

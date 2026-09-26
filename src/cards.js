@@ -99,28 +99,73 @@ export function buildMapUrl(activity) {
   return `${base}&query=${encodeURIComponent(query)}`;
 }
 
+export const ROLE_LABELS = {
+  'sure-thing': 'Sure thing',
+  'something-different': 'Something different',
+  'wildcard': 'Wildcard',
+};
+
+const TRAVEL_WORDS = { walk: 'walk', bike: 'by bike', drive: 'drive' };
+
+/** "12 min walk", "9 min by bike", or the old walk from the Square */
+export function describeTravel(activity) {
+  if (activity.travel) return `${activity.travel.minutes} min ${TRAVEL_WORDS[activity.travel.mode]}`;
+  const walk = activity.type === 'place' ? toNumber(activity.walk_minutes_from_center) : null;
+  return walk !== null ? `${walk} min walk from the Square` : null;
+}
+
+const SUNSET_CHIP_WINDOW_MS = 3 * 60 * 60 * 1000;
+
+/**
+ * Small live facts worth a glance: sunset for outdoor picks, rain risk, free
+ */
+export function liveChips(activity, conditions, requestedDate = new Date()) {
+  const chips = [];
+  const outdoor = toNumber(activity.vibe_inside) !== null && toNumber(activity.vibe_inside) <= 0.4;
+
+  if (outdoor && conditions?.sunset) {
+    const sunset = new Date(conditions.sunset);
+    const ahead = sunset - requestedDate;
+    if (ahead > 0 && ahead <= SUNSET_CHIP_WINDOW_MS) chips.push(`Sunset ${timeFormatter.format(sunset)}`);
+  }
+  if (outdoor && conditions?.weather?.precipChance >= 50) {
+    chips.push(`${conditions.weather.precipChance}% chance of rain`);
+  }
+  if (Array.isArray(activity.tags) && activity.tags.includes('free')) chips.push('Free');
+  return chips;
+}
+
 /**
  * Normalize an activity row into card props
  */
-export function toCard(activity, { requestedDate = new Date(), now = new Date() } = {}) {
+export function toCard(activity, { requestedDate = new Date(), now = new Date(), conditions = null } = {}) {
   const isEvent = activity.type === 'event';
-  const walk = toNumber(activity.walk_minutes_from_center);
+  const when = isEvent
+    ? describeEventTime(activity.start_time, activity.end_time, now)
+    : describeHours(activity.hours_today, requestedDate, now, activity.hours);
+  const travel = describeTravel(activity);
+  const mapUrl = buildMapUrl(activity);
 
   return {
     key: `${activity.type}-${activity.id}`,
     id: activity.id,
     type: activity.type,
+    role: activity.role || null,
+    roleLabel: ROLE_LABELS[activity.role] || null,
+    category: activity.category || (isEvent ? 'event' : 'place'),
     label: isEvent ? 'event' : (activity.category || 'place'),
     title: activity.title,
     neighborhood: isEvent ? (activity.venue_name || activity.neighborhood) : activity.neighborhood,
     story: activity.description || null,
     nudge: activity.nudge || null,
-    walkMinutes: isEvent ? null : walk,
-    when: isEvent
-      ? describeEventTime(activity.start_time, activity.end_time, now)
-      : describeHours(activity.hours_today, requestedDate, now, activity.hours),
-    mapUrl: buildMapUrl(activity),
+    walkMinutes: isEvent ? null : toNumber(activity.walk_minutes_from_center),
+    when,
+    travel,
+    status: [when, travel].filter(Boolean).join(' · '),
+    chips: liveChips(activity, conditions, requestedDate),
+    mapUrl,
     detailsUrl: isEvent ? (activity.source_url || null) : null,
+    shareText: [activity.title, when, activity.nudge].filter(Boolean).join(' · '),
   };
 }
 
