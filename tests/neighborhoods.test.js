@@ -45,6 +45,15 @@ describe('boundary lookup', () => {
     expect(cleanName('Vilas Neighborhood Assn')).toBe('Vilas');
   });
 
+  it('drops organizational words and uses everyday names', () => {
+    expect(cleanName('Schenk-Atwood Revitalization Association')).toBe('Schenk-Atwood');
+    expect(cleanName('Schenk-Atwood-Starkweather-Yahara Neighborhood Association')).toBe('Schenk-Atwood');
+    expect(cleanName('South Campus Property Owners Association')).toBe('South Campus');
+    expect(cleanName('Highlands Community Association Inc., The')).toBe('Highlands');
+    expect(cleanName('Wexford Village Condominium Owners Association')).toBe('Wexford Village');
+    expect(cleanName('Capitol Neighborhoods, Inc.')).toBe('Downtown');
+  });
+
   it('knows which existing neighborhoods are too vague to keep', () => {
     expect(isVague('Madison')).toBe(true);
     expect(isVague('Multiple locations')).toBe(true);

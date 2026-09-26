@@ -198,6 +198,9 @@ export const dedupKey = (title) => String(title).toLowerCase().replace(/[^a-z0-9
 const DUPLICATE_WINDOW_MS = 60 * 60 * 1000;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
+// Feeds that don't set STATUS mark it in the title: "CANCELED -- Book Club", "[Postponed] ..."
+const CANCELLED_TITLE = /^\W*(cancel+ed|postponed)\s*(--|—|–|-|:|\])/i;
+
 /**
  * Turn parsed ICS events into rows ready for the events table
  */
@@ -207,6 +210,7 @@ export function toEventRows(events, source, now = new Date()) {
 
   for (const event of events) {
     if (!event.title || !event.startTime || event.status === 'CANCELLED') continue;
+    if (CANCELLED_TITLE.test(event.title)) continue;
 
     const end = event.endTime || (event.allDay ? new Date(event.startTime.getTime() + ONE_DAY_MS) : null);
     // Skip anything already over

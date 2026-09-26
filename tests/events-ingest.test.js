@@ -71,6 +71,18 @@ describe('toEventRows', () => {
     const fair = rows[1];
     expect(new Date(fair.end_time) - new Date(fair.start_time)).toBe(24 * 60 * 60 * 1000);
   });
+
+  it('drops events marked cancelled in the title, but not shows named "Cancelled"', () => {
+    const at = new Date(NOW.getTime() + 60 * 60 * 1000);
+    const rows = toEventRows([
+      { title: 'CANCELED -- One-on-One Computer Assistance', startTime: at },
+      { title: '[Postponed] Book Club', startTime: at },
+      { title: 'Cancelled: A Comedy Night', startTime: at },
+      { title: 'Cancelled', startTime: at },
+      { title: 'Cancelled Plans Film Series', startTime: at },
+    ], 'mpl', NOW);
+    expect(rows.map(r => r.title)).toEqual(['Cancelled', 'Cancelled Plans Film Series']);
+  });
 });
 
 describe('getFeeds', () => {

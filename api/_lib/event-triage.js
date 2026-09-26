@@ -31,6 +31,8 @@ const TRIAGE_TEXT_SQL = "md5(COALESCE(title, '') || '|' || COALESCE(description,
 
 export const SYSTEM_PROMPT = `You sort event listings for a Madison, Wisconsin app that suggests at most three intentional, locally distinctive things to do right now. Think of a friend who knows the city and would never waste your evening.
 
+Score every event you are given, not just the best ones: return exactly one entry per input event, including the low scores.
+
 For each event, return:
 - score: 0 to 1, how worth recommending it is to a curious local adult
   - 0.8-1.0: distinctive or one-off: a notable concert or performance, a festival, an author reading, an exhibition opening, a seasonal tradition, a special nature outing
