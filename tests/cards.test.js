@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toCard, buildMapUrl, describeEventTime, greetingFor } from '../src/cards.js';
+import { toCard, buildMapUrl, describeEventTime, greetingFor, liveChips } from '../src/cards.js';
 import { fromLocalTime } from '../api/_lib/time.js';
 
 const now = fromLocalTime(2026, 8, 25, 18, 0); // Friday 6pm in Madison
@@ -103,5 +103,24 @@ describe('open until', () => {
       .toBe('Saturday: Open until 6:00 PM');
     expect(toCard({ type: 'place', id: 2, title: 'Park', hours: { always_open: true } }, { requestedDate: now, now }).when)
       .toBe('Open 24 hours');
+  });
+});
+
+describe('Phase 2 card details', () => {
+  const base = { type: 'place', id: 5, title: 'Picnic Point', category: 'park', vibe_inside: '0.10', tags: ['nature', 'free'], hours: null };
+  const noon = new Date('2026-09-26T17:00:00Z');
+
+  it('labels the role and says how to get there from you', () => {
+    const card = toCard({ ...base, role: 'wildcard', travel: { mode: 'bike', minutes: 9 } }, { requestedDate: noon, now: noon });
+    expect(card).toMatchObject({ roleLabel: 'Wildcard', travel: '9 min by bike', category: 'park' });
+    expect(card.status).toContain('9 min by bike');
+  });
+
+  it('shows sunset only for outdoor picks within a few hours of it, plus free', () => {
+    const conditions = { sunset: '2026-09-26T23:47:00Z', weather: { precipChance: 60 } };
+    const afternoon = new Date('2026-09-26T21:30:00Z');
+    expect(liveChips(base, conditions, afternoon)).toEqual(['Sunset 6:47 PM', '60% chance of rain', 'Free']);
+    expect(liveChips(base, conditions, noon)).toEqual(['60% chance of rain', 'Free']);
+    expect(liveChips({ ...base, vibe_inside: '0.90', tags: [] }, conditions, afternoon)).toEqual([]);
   });
 });
