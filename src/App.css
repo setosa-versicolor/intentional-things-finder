@@ -483,6 +483,12 @@ body.atmosphere-outside::before {
   transform: translateY(0);
 }
 
+.find-button:disabled {
+  background: var(--text-secondary);
+  cursor: progress;
+  transform: none;
+}
+
 .input-footer {
   text-align: center;
   padding-top: var(--space-xl);
@@ -525,6 +531,19 @@ body.atmosphere-outside::before {
   font-size: 1.3rem;
   font-weight: 400;
   color: var(--text-secondary);
+}
+
+.results-conditions {
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.results-notice {
+  margin-top: var(--space-xs);
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--text-muted);
 }
 
 /* Recommendation cards */
@@ -622,6 +641,11 @@ body.atmosphere-outside::before {
 .rec-hours {
   font-size: 0.8rem;
   color: var(--text-muted);
+}
+
+.rec-links {
+  display: flex;
+  gap: var(--space-md);
 }
 
 .rec-map-link {

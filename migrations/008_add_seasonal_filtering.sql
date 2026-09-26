@@ -1,4 +1,5 @@
--- Migration 005: Add seasonal filtering support
+-- Migration 008: Add seasonal filtering support
+-- (Previously named 005_add_seasonal_filtering.sql)
 -- Adds seasons field to track when places are best/available
 
 -- Add seasons array to places

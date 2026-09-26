@@ -3,59 +3,115 @@
  * Determines if a place is currently open based on hours data from Google
  */
 
+import { getLocalParts } from './time.js';
+
+const MINUTES_PER_WEEK = 7 * 24 * 60;
+
+// Accepts { day, time: "0930" } (legacy / our stored format) or { day, hour, minute } (Places API New)
+function toMinuteOfWeek(point) {
+  let hour;
+  let minute;
+  if (point.time !== undefined && point.time !== null) {
+    const t = parseInt(point.time, 10);
+    hour = Math.floor(t / 100);
+    minute = t % 100;
+  } else {
+    hour = point.hour ?? 0;
+    minute = point.minute ?? 0;
+  }
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
+  return point.day * 24 * 60 + hour * 60 + minute;
+}
+
 /**
- * Check if a place is currently open
+ * Check if a place is open at a given moment (Madison local time)
  * @param {Object} hours - Hours object from Google Places API
  * @param {Date} checkTime - Time to check (defaults to now)
- * @returns {boolean} - True if open, false if closed or unknown
+ * @returns {boolean} - True if open or unknown, false if known closed
  */
-export function isCurrentlyOpen(hours, checkTime = new Date()) {
-  if (!hours || !hours.periods || hours.periods.length === 0) {
-    // No hours data - assume it might be open
-    return true;
-  }
+export function isOpenAt(hours, checkTime = new Date()) {
+  if (!hours) return true;
 
-  // Check if 24/7
   if (hours.type === 'always_open' || hours.always_open) {
     return true;
   }
 
-  // Get current day and time
-  const day = checkTime.getDay(); // 0 = Sunday, 1 = Monday, etc.
-  const timeStr = checkTime.toTimeString().substring(0, 5).replace(':', ''); // "0930"
-  const currentTime = parseInt(timeStr);
-
-  // Find periods for today
-  const todayPeriods = hours.periods.filter(period => {
-    if (!period.open) return false;
-    return period.open.day === day;
-  });
-
-  if (todayPeriods.length === 0) {
-    // No periods for today = closed
-    return false;
+  if (!hours.periods || hours.periods.length === 0) {
+    // No hours data - assume it might be open
+    return true;
   }
 
-  // Check if current time falls within any open period
-  for (const period of todayPeriods) {
-    const openTime = parseInt(period.open.time);
-    const closeTime = period.close ? parseInt(period.close.time) : 2400;
+  const { weekday, hour, minute } = getLocalParts(checkTime);
+  const now = weekday * 24 * 60 + hour * 60 + minute;
 
-    // Handle overnight hours (e.g., open until 2am)
-    if (period.close && period.close.day !== day) {
-      // Closes tomorrow
-      if (currentTime >= openTime || currentTime < closeTime) {
-        return true;
-      }
-    } else {
-      // Same day close
-      if (currentTime >= openTime && currentTime < closeTime) {
-        return true;
+  let usablePeriods = 0;
+  for (const period of hours.periods) {
+    if (!period.open) continue;
+
+    // A single open period with no close means open 24/7
+    if (!period.close) return true;
+
+    const start = toMinuteOfWeek(period.open);
+    let end = toMinuteOfWeek(period.close);
+    if (start === null || end === null) continue;
+    usablePeriods++;
+
+    // Periods that wrap past Saturday night into Sunday
+    if (end <= start) end += MINUTES_PER_WEEK;
+
+    if ((now >= start && now < end) ||
+        (now + MINUTES_PER_WEEK >= start && now + MINUTES_PER_WEEK < end)) {
+      return true;
+    }
+  }
+
+  // Malformed data shouldn't hide a place
+  return usablePeriods === 0;
+}
+
+/**
+ * When does the open period containing `checkTime` end?
+ * @returns {Date|null} closing time, or null if closed, 24/7 or unknown
+ */
+export function getClosingTime(hours, checkTime = new Date()) {
+  if (!hours || hours.always_open || !hours.periods) return null;
+
+  const { weekday, hour, minute } = getLocalParts(checkTime);
+  const now = weekday * 24 * 60 + hour * 60 + minute;
+
+  for (const period of hours.periods) {
+    if (!period.open || !period.close) continue;
+    const start = toMinuteOfWeek(period.open);
+    let end = toMinuteOfWeek(period.close);
+    if (start === null || end === null) continue;
+    if (end <= start) end += MINUTES_PER_WEEK;
+
+    for (const t of [now, now + MINUTES_PER_WEEK]) {
+      if (t >= start && t < end) {
+        const closing = new Date(checkTime.getTime() + (end - t) * 60 * 1000);
+        closing.setSeconds(0, 0);
+        return closing;
       }
     }
   }
 
-  return false;
+  return null;
+}
+
+/**
+ * Check if a place is open when you'd arrive and stays open long enough to enjoy it
+ * @param {Object} hours
+ * @param {Date} arrival
+ * @param {number} minStayMinutes
+ */
+export function isOpenForVisit(hours, arrival = new Date(), minStayMinutes = 30) {
+  const leaving = new Date(arrival.getTime() + minStayMinutes * 60 * 1000);
+  return isOpenAt(hours, arrival) && isOpenAt(hours, leaving);
+}
+
+/** @deprecated use isOpenAt */
+export function isCurrentlyOpen(hours, checkTime = new Date()) {
+  return isOpenAt(hours, checkTime);
 }
 
 /**
@@ -65,47 +121,41 @@ export function isCurrentlyOpen(hours, checkTime = new Date()) {
  * @returns {string} - Status message like "Open now" or "Closed"
  */
 export function getHoursStatus(hours, checkTime = new Date()) {
+  if (hours?.always_open) {
+    return 'Open 24 hours';
+  }
+
   if (!hours || !hours.weekday_text) {
     return 'Hours not available';
   }
 
-  const isOpen = isCurrentlyOpen(hours, checkTime);
-
-  if (hours.always_open) {
-    return 'Open 24 hours';
-  }
-
-  if (isOpen) {
-    return 'Open now';
-  } else {
-    return 'Closed now';
-  }
+  return isOpenAt(hours, checkTime) ? 'Open now' : 'Closed now';
 }
 
 /**
- * Get today's hours as a readable string
+ * Get the hours for a given day as a readable string
  * @param {Object} hours - Hours object
- * @returns {string} - Hours for today
+ * @param {Date} date - Day to describe (Madison local)
+ * @returns {string|null} - e.g. "7:00 AM – 6:00 PM", or null if unknown
  */
-export function getTodaysHours(hours) {
-  if (!hours || !hours.weekday_text) {
-    return 'Hours not available';
-  }
+export function getTodaysHours(hours, date = new Date()) {
+  if (!hours) return null;
 
   if (hours.always_open) {
     return 'Open 24 hours';
   }
 
-  const today = new Date().getDay();
-  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-  if (hours.weekday_text && hours.weekday_text.length > today) {
-    const todayText = hours.weekday_text[today];
-    // Extract just the hours part after the colon
-    return todayText.split(': ')[1] || todayText;
+  if (!hours.weekday_text || hours.weekday_text.length !== 7) {
+    return null;
   }
 
-  return 'Hours not available';
+  // Google's weekday_text starts on Monday
+  const { weekday } = getLocalParts(date);
+  const text = hours.weekday_text[(weekday + 6) % 7];
+  if (!text) return null;
+
+  // Extract just the hours part after the colon
+  return text.split(': ').slice(1).join(': ') || text;
 }
 
 /**
@@ -166,31 +216,4 @@ export function closesEarly(hours) {
 
   // If more than 50% of days close before 6 PM, consider it "closes early"
   return earlyCloses.length > closeTimes.length / 2;
-}
-
-/**
- * Get sunset time for Madison, WI (approximate)
- * @param {Date} date - Date to check
- * @returns {number} - Sunset time in HHMM format
- */
-export function getSunsetTime(date = new Date()) {
-  const month = date.getMonth(); // 0-11
-
-  // Approximate sunset times for Madison, WI throughout the year
-  const sunsetTimes = {
-    0: 1630,  // January
-    1: 1700,  // February
-    2: 1800,  // March
-    3: 1900,  // April
-    4: 1945,  // May
-    5: 2015,  // June
-    6: 2015,  // July
-    7: 1945,  // August
-    8: 1845,  // September
-    9: 1745,  // October
-    10: 1645, // November
-    11: 1615  // December
-  };
-
-  return sunsetTimes[month];
 }

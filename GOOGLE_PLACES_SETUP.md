@@ -43,10 +43,10 @@ Apply the migration to add Google Places columns:
 
 ```bash
 # Using psql (if available)
-psql "$POSTGRES_URL" < migrations/002_add_google_place_id.sql
+psql "$POSTGRES_URL" < migrations/005_add_google_place_id.sql
 
 # Or using any PostgreSQL client, run the SQL in:
-# migrations/002_add_google_place_id.sql
+# migrations/005_add_google_place_id.sql
 ```
 
 This adds the following columns to the `places` table:

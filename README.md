@@ -47,7 +47,27 @@ npm run dev
 
 # Build for production
 npm run build
+
+# Run the tests (scoring, hours, time zones, cards)
+npm test
 ```
+
+## Keeping the data fresh
+
+| What | How | When |
+|---|---|---|
+| Events | `api/_lib/events-ingest.js`, run by the Vercel cron and `.github/workflows/scrape-events.yml` | Daily |
+| More event feeds | Set `EXTRA_ICS_FEEDS` (JSON list of `{source, name, url}`) as a Vercel env var and a GitHub repo variable. Vet a feed first with `node scripts/vet-feeds.js <url>` | Once per feed |
+| Hours, ratings, closures | `node scripts/sync-google-places.js`, also run by `.github/workflows/sync-places.yml` | Weekly |
+| Event sorting | `scrapers/triage-events.js` asks a small model whether each new or changed event is worth recommending, and for its tags and vibes. It affects ranking only; users never see its words. Uses `OPENAI_API_KEY`, model set by `EVENT_TRIAGE_MODEL` (default `gpt-4o-mini`). `EVENT_TRIAGE=off` disables it | Daily, after scraping |
+| Tags | `node scripts/normalize-tags.js --apply` | After bulk imports |
+| Neighborhoods | `node scripts/assign-neighborhoods.js --apply` | After adding places |
+| Weather & sunset | Fetched live from api.weather.gov; sunset computed locally | Every request (cached 10 min) |
+
+Scripts that change data do a dry run unless you pass `--apply`.
+
+**Schema changes:** `node scripts/migrate.js` (dry run), then `--apply`. See `migrations/README.md`.
+To see which database is which, paste `scripts/sql/check-database.sql` into its SQL editor.
 
 ## Project Structure
 

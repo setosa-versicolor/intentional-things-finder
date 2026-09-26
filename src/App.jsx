@@ -1,192 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import { getRecommendations as getRecommendationsAPI } from './api';
+import { getRecommendations as getRecommendationsAPI, sendFeedback } from './api';
+import { buildContext, rankActivities } from '../api/_lib/recommend.js';
+import { TAG_OPTIONS } from '../api/_lib/tags.js';
+import { FALLBACK_PLACES } from './fallbackPlaces.js';
+import { toCard, greetingFor, describeConditions } from './cards.js';
+import { getSunTimes } from '../api/_lib/sun.js';
 
-// Madison-specific curated places (this becomes a data layer later)
-const MADISON_PLACES = [
-  {
-    id: 1,
-    name: "Bradbury's Coffee",
-    type: "café",
-    neighborhood: "Capitol Square",
-    vibe: { quiet: 0.7, inside: 0.9 },
-    bestTimes: ["morning", "afternoon"],
-    walkMinutes: 12,
-    story: "Tucked into the capitol square's northwest corner, Bradbury's has that rare combination: excellent coffee, natural light, and tables spaced for actual solitude. The regulars read books here, not laptops.",
-    nudge: "Order the cortado. Sit at the window facing the square. Bring something to read that isn't on a screen.",
-    tags: ["walkable", "quiet", "solo-friendly"],
-    coords: { lat: 43.0747, lng: -89.3882 },
-    hours: "7am-6pm",
-    kidFriendly: false,
-    lowEnergy: true
-  },
-  {
-    id: 2,
-    name: "Olbrich Botanical Gardens",
-    type: "garden",
-    neighborhood: "East Side",
-    vibe: { quiet: 0.8, inside: 0.2 },
-    bestTimes: ["morning", "afternoon"],
-    walkMinutes: 25,
-    story: "The Thai Pavilion catches most visitors, but the real magic is the rock garden path in late afternoon light. It's designed for wandering without purpose—which is, of course, the purpose.",
-    nudge: "Enter through the back parking lot. Turn left immediately. Walk slowly. The bench by the pond is worth sitting on for ten minutes.",
-    tags: ["walkable", "outside", "peaceful"],
-    coords: { lat: 43.0894, lng: -89.3334 },
-    hours: "8am-8pm (summer)",
-    kidFriendly: true,
-    lowEnergy: true
-  },
-  {
-    id: 3,
-    name: "The Weary Traveler",
-    type: "bar",
-    neighborhood: "Willy Street",
-    vibe: { quiet: 0.3, inside: 0.8 },
-    bestTimes: ["evening"],
-    walkMinutes: 18,
-    story: "Not a craft cocktail bar. Not trying to be. The Weary Traveler is where the east side goes to be comfortably social without performance. The patio is the move when weather permits.",
-    nudge: "Go on a weeknight. Order whatever's on tap. If the patio's open, claim a corner table. Conversation happens naturally here.",
-    tags: ["social", "casual", "local"],
-    coords: { lat: 43.0768, lng: -89.3556 },
-    hours: "4pm-close",
-    kidFriendly: false,
-    lowEnergy: false
-  },
-  {
-    id: 4,
-    name: "Tenney Park Lock & Dam",
-    type: "walk",
-    neighborhood: "Tenney-Lapham",
-    vibe: { quiet: 0.6, inside: 0.0 },
-    bestTimes: ["morning", "evening"],
-    walkMinutes: 20,
-    story: "Most people walk past the lock and dam without stopping. Don't. The water mechanics are oddly meditative, and on summer evenings you'll catch kayakers waiting their turn while herons hunt the shallows.",
-    nudge: "Walk the full loop around Tenney Park first (15 min), then end at the lock. Bring nothing. Watch the water.",
-    tags: ["outside", "free", "meditative"],
-    coords: { lat: 43.0892, lng: -89.3678 },
-    hours: "Always open",
-    kidFriendly: true,
-    lowEnergy: true
-  },
-  {
-    id: 5,
-    name: "Mystery to Me",
-    type: "bookstore",
-    neighborhood: "Monroe Street",
-    vibe: { quiet: 0.8, inside: 0.9 },
-    bestTimes: ["afternoon"],
-    walkMinutes: 22,
-    story: "An independent bookstore that actually feels independent. The staff recommendations are genuine (and weird in the right ways). The mystery section is deep, but don't sleep on their literary fiction picks.",
-    nudge: "Ask whoever's working what they just finished reading. Buy something you wouldn't have found on your own. Walk to Colectivo after.",
-    tags: ["quiet", "browsing", "local"],
-    coords: { lat: 43.0628, lng: -89.4142 },
-    hours: "10am-7pm",
-    kidFriendly: true,
-    lowEnergy: true
-  },
-  {
-    id: 6,
-    name: "Garver Feed Mill",
-    type: "market",
-    neighborhood: "East Side",
-    vibe: { quiet: 0.4, inside: 0.6 },
-    bestTimes: ["morning", "afternoon"],
-    walkMinutes: 30,
-    story: "A beautifully restored feed mill that now houses local food vendors and makers. Ian's Pizza, Underground Food Collective, Ledger Coffee. It's a destination that earns the walk.",
-    nudge: "Saturday morning is busy but worth it. Get coffee from Ledger, browse the Dane County Farmers' Market extension, then sit in the courtyard.",
-    tags: ["food", "local", "weekend"],
-    coords: { lat: 43.0912, lng: -89.3289 },
-    hours: "7am-9pm",
-    kidFriendly: true,
-    lowEnergy: false
-  },
-  {
-    id: 7,
-    name: "Picnic Point",
-    type: "nature",
-    neighborhood: "UW Campus",
-    vibe: { quiet: 0.9, inside: 0.0 },
-    bestTimes: ["morning", "evening"],
-    walkMinutes: 35,
-    story: "A narrow peninsula stretching into Lake Mendota. The walk out and back is exactly long enough to process something you've been avoiding thinking about. Sunset from the point is Madison's best free show.",
-    nudge: "Go alone. Leave your phone in your pocket until you reach the tip. On the way back, you'll know what you needed to figure out.",
-    tags: ["nature", "solo", "meditative"],
-    coords: { lat: 43.0858, lng: -89.4275 },
-    hours: "4am-11pm",
-    kidFriendly: true,
-    lowEnergy: false
-  },
-  {
-    id: 8,
-    name: "Daisy Cafe & Cupcakery",
-    type: "café",
-    neighborhood: "Atwood",
-    vibe: { quiet: 0.5, inside: 0.7 },
-    bestTimes: ["morning", "afternoon"],
-    walkMinutes: 15,
-    story: "Brunch with personality. The space is small and a little loud, which somehow makes it feel more alive. The cupcakes are what they're known for, but the savory menu is the real draw.",
-    nudge: "Weekday breakfast avoids the weekend wait. Get the Atwood scramble. Take a cupcake to go for later.",
-    tags: ["food", "local", "casual"],
-    coords: { lat: 43.0891, lng: -89.3456 },
-    hours: "7am-3pm",
-    kidFriendly: true,
-    lowEnergy: true
-  }
-];
-
-// Time-of-day detection
-const getTimeOfDay = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'morning';
-  if (hour < 17) return 'afternoon';
-  return 'evening';
-};
-
-// Scoring algorithm for matching places to preferences
-const scorePlace = (place, preferences) => {
-  let score = 0;
-  
-  // Time available (walking time must fit)
-  const totalTimeNeeded = place.walkMinutes * 2 + 30; // walk there, spend time, walk back
-  if (totalTimeNeeded > preferences.timeAvailable) {
-    return -1; // disqualify
-  }
-  score += (preferences.timeAvailable - totalTimeNeeded) * 0.1; // bonus for comfortable fit
-  
-  // Vibe matching (0-1 scale)
-  const quietMatch = 1 - Math.abs(place.vibe.quiet - preferences.quietSocial);
-  const insideMatch = 1 - Math.abs(place.vibe.inside - preferences.insideOutside);
-  score += quietMatch * 30 + insideMatch * 30;
-  
-  // Time of day appropriateness
-  const currentTime = getTimeOfDay();
-  if (place.bestTimes.includes(currentTime)) {
-    score += 20;
-  }
-  
-  // Constraint matching
-  if (preferences.kidFriendly && !place.kidFriendly) {
-    return -1; // disqualify
-  }
-  if (preferences.lowEnergy && !place.lowEnergy) {
-    score -= 15;
-  }
-  
-  // Add some controlled randomness for variety
-  score += Math.random() * 10;
-  
-  return score;
-};
-
-// Get curated recommendations
-const getRecommendations = (preferences, count = 3) => {
-  const scored = MADISON_PLACES
-    .map(place => ({ place, score: scorePlace(place, preferences) }))
-    .filter(({ score }) => score >= 0)
-    .sort((a, b) => b.score - a.score);
-  
-  return scored.slice(0, count).map(({ place }) => place);
-};
+// Offline fallback: same ranking as the API, over a handful of favorites
+const getFallbackRecommendations = (preferences, date, count = 3) =>
+  rankActivities(FALLBACK_PLACES, preferences, buildContext({ date }), count);
 
 // Components
 const VibeSlider = ({ label, leftLabel, rightLabel, value, onChange }) => (
@@ -200,6 +23,7 @@ const VibeSlider = ({ label, leftLabel, rightLabel, value, onChange }) => (
         max="100"
         value={value * 100}
         onChange={(e) => onChange(e.target.value / 100)}
+        aria-label={`${label}: ${leftLabel} to ${rightLabel}`}
         className="slider"
       />
       <span className="slider-end-label">{rightLabel}</span>
@@ -223,6 +47,8 @@ const TimeSelector = ({ value, onChange }) => {
         {options.map(opt => (
           <button
             key={opt.minutes}
+            type="button"
+            aria-pressed={value === opt.minutes}
             className={`time-option ${value === opt.minutes ? 'active' : ''}`}
             onClick={() => onChange(opt.minutes)}
           >
@@ -248,6 +74,8 @@ const LocationSelector = ({ value, onChange }) => {
         {options.map(opt => (
           <button
             key={opt.value}
+            type="button"
+            aria-pressed={value === opt.value}
             className={`radio-option ${value === opt.value ? 'active' : ''}`}
             onClick={() => onChange(opt.value)}
           >
@@ -260,22 +88,6 @@ const LocationSelector = ({ value, onChange }) => {
 };
 
 const TagSelector = ({ selectedTags, onChange }) => {
-  const tags = [
-    'dog-friendly',
-    'food-focused',
-    'kid-friendly',
-    'date-night',
-    'solo-friendly',
-    'creative',
-    'educational',
-    'nature',
-    'friend-hangout',
-    'unusual-options',
-    'outside-my-norm',
-    'free',
-    'cheap-eats'
-  ];
-
   const toggleTag = (tag) => {
     if (selectedTags.includes(tag)) {
       onChange(selectedTags.filter(t => t !== tag));
@@ -288,13 +100,15 @@ const TagSelector = ({ selectedTags, onChange }) => {
     <div className="tag-selector">
       <label className="selector-label">Tags (select any that apply)</label>
       <div className="tag-options">
-        {tags.map(tag => (
+        {TAG_OPTIONS.map(({ tag, label }) => (
           <button
             key={tag}
+            type="button"
+            aria-pressed={selectedTags.includes(tag)}
             className={`tag-option ${selectedTags.includes(tag) ? 'active' : ''}`}
             onClick={() => toggleTag(tag)}
           >
-            {tag}
+            {label}
           </button>
         ))}
       </div>
@@ -302,21 +116,23 @@ const TagSelector = ({ selectedTags, onChange }) => {
   );
 };
 
+// datetime-local inputs work in local time, not UTC
+const toLocalInputValue = (date) => {
+  const d = new Date(date);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+const MAX_DAYS_AHEAD = 14;
+
 const DateTimeSelector = ({ value, onChange }) => {
   const [expanded, setExpanded] = useState(false);
 
   const formatDateTime = (date) => {
     if (!date) return 'Now';
-    const d = new Date(date);
-    const now = new Date();
-
-    // Check if it's today
-    if (d.toDateString() === now.toDateString()) {
-      return 'Now';
-    }
 
     // Format as "Mon, Jan 15, 3:00 PM"
-    return d.toLocaleDateString('en-US', {
+    return new Date(date).toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
@@ -325,13 +141,18 @@ const DateTimeSelector = ({ value, onChange }) => {
     });
   };
 
-  const handleDateChange = (e) => {
-    const selectedDate = new Date(e.target.value);
-    const now = new Date();
-    const maxDate = new Date();
-    maxDate.setDate(maxDate.getDate() + 14); // 2 weeks from now
+  const getMaxDate = () => {
+    const max = new Date();
+    max.setDate(max.getDate() + MAX_DAYS_AHEAD);
+    return max;
+  };
 
-    if (selectedDate < now) {
+  const handleDateChange = (e) => {
+    if (!e.target.value) return;
+    const selectedDate = new Date(e.target.value); // parsed as local time
+    const maxDate = getMaxDate();
+
+    if (selectedDate <= new Date()) {
       onChange(null); // Reset to "Now"
     } else if (selectedDate > maxDate) {
       onChange(maxDate.toISOString());
@@ -340,39 +161,33 @@ const DateTimeSelector = ({ value, onChange }) => {
     }
   };
 
-  const getMaxDate = () => {
-    const max = new Date();
-    max.setDate(max.getDate() + 14);
-    return max.toISOString().slice(0, 16);
-  };
-
-  const getMinDate = () => {
-    return new Date().toISOString().slice(0, 16);
-  };
-
   return (
     <div className="datetime-selector">
       <label className="selector-label">When?</label>
       <div className="datetime-container">
         <button
+          type="button"
+          aria-expanded={expanded}
           className={`datetime-display ${!value ? 'active' : ''}`}
           onClick={() => setExpanded(!expanded)}
         >
           {formatDateTime(value)}
-          <span className="datetime-arrow">{expanded ? '▲' : '▼'}</span>
+          <span className="datetime-arrow" aria-hidden="true">{expanded ? '▲' : '▼'}</span>
         </button>
 
         {expanded && (
           <div className="datetime-picker">
             <input
               type="datetime-local"
-              value={value ? new Date(value).toISOString().slice(0, 16) : getMinDate()}
+              aria-label="Start time"
+              value={toLocalInputValue(value || new Date())}
               onChange={handleDateChange}
-              min={getMinDate()}
-              max={getMaxDate()}
+              min={toLocalInputValue(new Date())}
+              max={toLocalInputValue(getMaxDate())}
               className="datetime-input"
             />
             <button
+              type="button"
               className="datetime-reset"
               onClick={() => {
                 onChange(null);
@@ -388,44 +203,55 @@ const DateTimeSelector = ({ value, onChange }) => {
   );
 };
 
-const RecommendationCard = ({ place, index }) => {
-  // Use Place ID if available for more accurate Google Maps links, fallback to coordinates
-  const mapUrl = place.google_place_id
-    ? `https://www.google.com/maps/place/?q=place_id:${place.google_place_id}`
-    : `https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`;
+const RecommendationCard = ({ card, index, onGo }) => (
+  <article className="recommendation" style={{ '--delay': `${index * 0.15}s` }}>
+    <header className="rec-header">
+      <span className="rec-type">{card.label}</span>
+      {card.walkMinutes !== null && (
+        <span className="rec-walk">{card.walkMinutes} min walk from the Square</span>
+      )}
+    </header>
 
-  return (
-    <article className="recommendation" style={{ '--delay': `${index * 0.15}s` }}>
-      <header className="rec-header">
-        <span className="rec-type">{place.type}</span>
-        <span className="rec-walk">{place.walkMinutes} min walk</span>
-      </header>
-      
-      <h2 className="rec-name">{place.name}</h2>
-      <p className="rec-neighborhood">{place.neighborhood}</p>
-      
-      <p className="rec-story">{place.story}</p>
-      
+    <h2 className="rec-name">{card.title}</h2>
+    {card.neighborhood && <p className="rec-neighborhood">{card.neighborhood}</p>}
+
+    {card.story && <p className="rec-story">{card.story}</p>}
+
+    {card.nudge && (
       <div className="rec-nudge">
-        <p>{place.nudge}</p>
+        <p>{card.nudge}</p>
       </div>
-      
-      <footer className="rec-footer">
-        <span className="rec-hours">{place.hours}</span>
-        <a 
-          href={mapUrl} 
-          target="_blank" 
+    )}
+
+    <footer className="rec-footer">
+      <span className="rec-hours">{card.when || ''}</span>
+      <span className="rec-links">
+        {card.detailsUrl && (
+          <a
+            href={card.detailsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rec-map-link"
+            onClick={() => onGo(card)}
+          >
+            Details
+          </a>
+        )}
+        <a
+          href={card.mapUrl}
+          target="_blank"
           rel="noopener noreferrer"
           className="rec-map-link"
+          onClick={() => onGo(card)}
         >
           Open in Maps →
         </a>
-      </footer>
-    </article>
-  );
-};
+      </span>
+    </footer>
+  </article>
+);
 
-const InputScreen = ({ onSubmit }) => {
+const InputScreen = ({ onSubmit, loading }) => {
   const [timeAvailable, setTimeAvailable] = useState(90);
   const [quietToLively, setQuietToLively] = useState(0.5);
   const [activeToRelaxing, setActiveToRelaxing] = useState(0.5);
@@ -450,6 +276,7 @@ const InputScreen = ({ onSubmit }) => {
   }, [location]);
 
   const handleSubmit = () => {
+    if (loading) return;
     onSubmit({
       timeAvailable,
       quietToLively,
@@ -494,8 +321,14 @@ const InputScreen = ({ onSubmit }) => {
 
         <DateTimeSelector value={dateTime} onChange={setDateTime} />
 
-        <button className="find-button" onClick={handleSubmit}>
-          Find something good
+        <button
+          type="button"
+          className="find-button"
+          onClick={handleSubmit}
+          disabled={loading}
+          aria-busy={loading}
+        >
+          {loading ? 'Finding something good…' : 'Find something good'}
         </button>
       </div>
 
@@ -506,25 +339,29 @@ const InputScreen = ({ onSubmit }) => {
   );
 };
 
-const ResultsScreen = ({ recommendations, onBack }) => {
-  const timeOfDay = getTimeOfDay();
-  const greeting = {
-    morning: "Good morning",
-    afternoon: "This afternoon",
-    evening: "This evening"
-  }[timeOfDay];
-  
+const ResultsScreen = ({ recommendations, requestedDate, conditions, usingFallback, onBack, onGo }) => {
+  const now = new Date();
+  const greeting = greetingFor(requestedDate, now);
+  const conditionsLine = describeConditions(conditions, requestedDate);
+  const cards = recommendations.map(rec => toCard(rec, { requestedDate, now }));
+
   return (
     <div className="results-screen">
       <header className="results-header">
-        <button className="back-button" onClick={onBack}>← Different mood</button>
+        <button type="button" className="back-button" onClick={onBack}>← Different mood</button>
         <p className="results-greeting">{greeting}, here's what fits:</p>
+        {conditionsLine && <p className="results-conditions">{conditionsLine}</p>}
+        {usingFallback && (
+          <p className="results-notice">
+            Couldn't reach the full list just now, so here are a few old favorites.
+          </p>
+        )}
       </header>
-      
+
       <div className="recommendations">
-        {recommendations.length > 0 ? (
-          recommendations.map((place, index) => (
-            <RecommendationCard key={place.id} place={place} index={index} />
+        {cards.length > 0 ? (
+          cards.map((card, index) => (
+            <RecommendationCard key={card.key} card={card} index={index} onGo={onGo} />
           ))
         ) : (
           <div className="no-results">
@@ -533,7 +370,7 @@ const ResultsScreen = ({ recommendations, onBack }) => {
           </div>
         )}
       </div>
-      
+
       <footer className="results-footer">
         <p className="results-cta">Pick one. Go now.</p>
       </footer>
@@ -544,77 +381,61 @@ const ResultsScreen = ({ recommendations, onBack }) => {
 function App() {
   const [screen, setScreen] = useState('input');
   const [recommendations, setRecommendations] = useState([]);
+  const [recommendationId, setRecommendationId] = useState(null);
+  const [requestedDate, setRequestedDate] = useState(() => new Date());
+  const [conditions, setConditions] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [usingAPI, setUsingAPI] = useState(false);
+  const [usingFallback, setUsingFallback] = useState(false);
 
   const handleSubmit = async (preferences) => {
     setLoading(true);
+    const date = new Date(preferences.date);
 
-    try {
-      // Try API first
-      const apiResults = await getRecommendationsAPI(preferences);
+    // Returns null if the API is unreachable
+    const response = await getRecommendationsAPI(preferences);
 
-      if (apiResults && apiResults.length > 0) {
-        // Transform API response to match local format
-        const transformedResults = apiResults.map(rec => ({
-          id: rec.id,
-          name: rec.title,
-          type: rec.type,
-          neighborhood: rec.neighborhood,
-          vibe: {
-            quiet: parseFloat(rec.vibe_quiet),
-            inside: parseFloat(rec.vibe_inside)
-          },
-          bestTimes: rec.best_times || [],
-          walkMinutes: rec.walk_minutes_from_center,
-          story: rec.description,
-          nudge: rec.nudge || 'Enjoy your visit!',
-          tags: rec.tags || [],
-          lat: parseFloat(rec.lat),
-          lng: parseFloat(rec.lng),
-          google_place_id: rec.google_place_id,
-          hours: typeof rec.hours === 'string' ? rec.hours : 'Check website',
-          kidFriendly: rec.kid_friendly,
-          lowEnergy: rec.low_energy
-        }));
-
-        setRecommendations(transformedResults);
-        setUsingAPI(true);
-        console.log('✅ Using API recommendations');
-      } else {
-        // Fallback to local scoring
-        const localResults = getRecommendations(preferences, 3);
-        setRecommendations(localResults);
-        setUsingAPI(false);
-        console.log('⚠️ API unavailable, using local recommendations');
-      }
-    } catch (error) {
-      // Fallback to local scoring on error
-      console.warn('API error, falling back to local:', error);
-      const localResults = getRecommendations(preferences, 3);
-      setRecommendations(localResults);
-      setUsingAPI(false);
+    if (response) {
+      setRecommendations(response.recommendations || []);
+      setRecommendationId(response.metadata?.recommendationId ?? null);
+      setRequestedDate(response.metadata?.requestedAt ? new Date(response.metadata.requestedAt) : date);
+      setConditions(response.metadata?.conditions ?? null);
+      setUsingFallback(false);
+    } else {
+      setRecommendations(getFallbackRecommendations(preferences, date));
+      setRecommendationId(null);
+      setRequestedDate(date);
+      setConditions({ sunset: getSunTimes(date).sunset.toISOString() });
+      setUsingFallback(true);
     }
 
     setLoading(false);
     setScreen('results');
   };
 
+  const handleGo = (card) => {
+    if (recommendationId) {
+      sendFeedback(recommendationId, card.id, card.type);
+    }
+  };
+
   const handleBack = () => {
     setScreen('input');
     setRecommendations([]);
+    setRecommendationId(null);
   };
 
   return (
     <div className="app">
       {screen === 'input' ? (
-        <InputScreen onSubmit={handleSubmit} />
+        <InputScreen onSubmit={handleSubmit} loading={loading} />
       ) : (
         <ResultsScreen
           recommendations={recommendations}
+          requestedDate={requestedDate}
+          conditions={conditions}
+          usingFallback={usingFallback}
           onBack={handleBack}
-          loading={loading}
-          usingAPI={usingAPI}
+          onGo={handleGo}
         />
       )}
     </div>

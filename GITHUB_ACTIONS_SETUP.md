@@ -46,7 +46,7 @@ GitHub Actions needs your database credentials. Add them as secrets (encrypted, 
 
 **Secret 1: DATABASE_URL** (Required)
 - **Name**: `DATABASE_URL`
-- **Value**: `postgresql://postgres:v0z5VLEk1pxM4Yu8@db.tzfygbaambmulgnjwfba.supabase.co:5432/postgres`
+- **Value**: `postgresql://postgres:YOUR_DATABASE_PASSWORD@db.tzfygbaambmulgnjwfba.supabase.co:5432/postgres`
 - Click **Add secret**
 
 ### 2.3 Add Optional Secret (for embeddings)

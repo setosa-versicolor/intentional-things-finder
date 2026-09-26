@@ -167,14 +167,18 @@ export function formatHours(opening_hours) {
   }
 
   // Convert periods to our format
+  // Legacy API gives { day, time: "0900" }; Places API (New) gives { day, hour, minute }
+  const toTime = (point) => point.time ??
+    `${String(point.hour ?? 0).padStart(2, '0')}${String(point.minute ?? 0).padStart(2, '0')}`;
+
   const periods = opening_hours.periods.map(period => ({
     open: {
       day: period.open.day, // 0=Sunday, 1=Monday, etc.
-      time: period.open.time // 24-hour format, e.g., "0900"
+      time: toTime(period.open) // 24-hour format, e.g., "0900"
     },
     close: period.close ? {
       day: period.close.day,
-      time: period.close.time
+      time: toTime(period.close)
     } : null
   }));
 

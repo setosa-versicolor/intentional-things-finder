@@ -4,10 +4,10 @@ node_modules/
 # Build output
 dist/
 
-# Environment files
+# Environment files (never commit these; .env.example files are fine)
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
 # Editor directories and files
 .vscode/
@@ -43,4 +43,3 @@ view-*.js
 run-*.js
 *-page.html
 .vercel
-.env*.local

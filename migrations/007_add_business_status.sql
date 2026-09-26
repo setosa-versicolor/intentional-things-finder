@@ -1,4 +1,5 @@
--- Migration 004: Add business status tracking
+-- Migration 007: Add business status tracking
+-- (Previously named 004_add_business_status.sql)
 -- Tracks whether places are operational, temporarily closed, or permanently closed
 
 ALTER TABLE places

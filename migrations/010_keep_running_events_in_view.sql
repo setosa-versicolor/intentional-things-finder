@@ -1,5 +1,6 @@
--- Migration 003: Add google_place_id to activities view
--- This updates the view to include the google_place_id for better Google Maps integration
+-- Migration 010: Keep running events in the activities view
+-- All-day and multi-hour events used to disappear 2 hours after they started,
+-- so festivals and exhibits vanished while still going on.
 
 DROP VIEW IF EXISTS activities;
 
@@ -31,7 +32,8 @@ SELECT
   p.google_place_id,
   p.google_rating,
   p.google_user_ratings_total,
-  p.hours
+  p.hours,
+  p.business_status
 FROM places p
 
 UNION ALL
@@ -63,8 +65,10 @@ SELECT
   NULL AS google_place_id,
   NULL AS google_rating,
   NULL AS google_user_ratings_total,
-  NULL::JSONB AS hours
+  NULL::JSONB AS hours,
+  'OPERATIONAL' AS business_status
 FROM events e
-WHERE e.start_time > NOW() - INTERVAL '2 hours';
+-- Still running, or started within the last 2 hours if there's no end time
+WHERE COALESCE(e.end_time, e.start_time + INTERVAL '2 hours') > NOW();
 
-COMMENT ON VIEW activities IS 'Unified view of places and events for recommendations, includes Google Place IDs';
+COMMENT ON VIEW activities IS 'Unified view of places and events for recommendations; events stay visible while they are running';

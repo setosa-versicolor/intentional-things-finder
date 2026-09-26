@@ -1,4 +1,5 @@
--- Migration 002: Add Google Places API integration
+-- Migration 005: Add Google Places API integration
+-- (Previously named 002_add_google_place_id.sql)
 -- Adds google_place_id and last_synced_at for automatic hours updates
 
 ALTER TABLE places
