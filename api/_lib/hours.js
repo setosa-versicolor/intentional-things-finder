@@ -15,12 +15,72 @@ function toMinuteOfWeek(point) {
     const t = parseInt(point.time, 10);
     hour = Math.floor(t / 100);
     minute = t % 100;
-  } else {
-    hour = point.hour ?? 0;
+  } else if (point.hour !== undefined && point.hour !== null) {
+    hour = point.hour;
     minute = point.minute ?? 0;
+  } else {
+    // A day with no time says nothing about when it opens
+    return null;
   }
   if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
   return point.day * 24 * 60 + hour * 60 + minute;
+}
+
+// "7:30 AM", "9 PM", "5:00" (meridiem borrowed from the other end of the range)
+const TIME_RE = /(\d{1,2})(?::(\d{2}))?\s*([AP]M)?/i;
+
+function parseClock(text, fallbackMeridiem) {
+  const m = TIME_RE.exec(text);
+  if (!m) return null;
+  let hour = parseInt(m[1], 10) % 12;
+  const meridiem = (m[3] || fallbackMeridiem || '').toUpperCase();
+  if (meridiem === 'PM') hour += 12;
+  return { hour, minute: m[2] ? parseInt(m[2], 10) : 0, meridiem: m[3]?.toUpperCase() || null };
+}
+
+/**
+ * Build periods from Google's weekday_text ("Monday: 10:00 AM – 4:00 PM"),
+ * for rows whose periods were stored without times. Monday-first, like Google.
+ * @returns {Array|null} periods, or null if the text can't be read
+ */
+export function periodsFromWeekdayText(weekdayText) {
+  if (!Array.isArray(weekdayText) || weekdayText.length !== 7) return null;
+  const periods = [];
+
+  for (let i = 0; i < 7; i++) {
+    const day = (i + 1) % 7; // Monday-first -> Sunday = 0
+    const text = String(weekdayText[i]).split(': ').slice(1).join(': ').replace(/[   ]/g, ' ');
+    if (!text || /closed/i.test(text)) continue;
+    if (/24 hours/i.test(text)) {
+      periods.push({ open: { day, time: '0000' }, close: { day: (day + 1) % 7, time: '0000' } });
+      continue;
+    }
+    for (const range of text.split(',')) {
+      const [from, to] = range.split(/\s*[–—-]\s*/);
+      if (!from || !to) return null;
+      const close = parseClock(to);
+      const open = parseClock(from, close?.meridiem);
+      if (!open || !close) return null;
+      const openMin = open.hour * 60 + open.minute;
+      const closeMin = close.hour * 60 + close.minute;
+      const pad = (n) => String(n).padStart(2, '0');
+      periods.push({
+        open: { day, time: `${pad(open.hour)}${pad(open.minute)}` },
+        // Closing at or before opening means after midnight
+        close: { day: closeMin <= openMin ? (day + 1) % 7 : day, time: `${pad(close.hour)}${pad(close.minute)}` },
+      });
+    }
+  }
+  return periods;
+}
+
+const hasTimes = (period) => period.open && toMinuteOfWeek(period.open) !== null;
+
+/** Periods we can trust: stored ones if they have times, else read from weekday_text */
+function usablePeriods(hours) {
+  const stored = hours.periods || [];
+  if (stored.some(hasTimes)) return stored;
+  return periodsFromWeekdayText(hours.weekday_text) || stored;
 }
 
 /**
@@ -36,7 +96,8 @@ export function isOpenAt(hours, checkTime = new Date()) {
     return true;
   }
 
-  if (!hours.periods || hours.periods.length === 0) {
+  const periods = usablePeriods(hours);
+  if (periods.length === 0) {
     // No hours data - assume it might be open
     return true;
   }
@@ -44,8 +105,8 @@ export function isOpenAt(hours, checkTime = new Date()) {
   const { weekday, hour, minute } = getLocalParts(checkTime);
   const now = weekday * 24 * 60 + hour * 60 + minute;
 
-  let usablePeriods = 0;
-  for (const period of hours.periods) {
+  let usable = 0;
+  for (const period of periods) {
     if (!period.open) continue;
 
     // A single open period with no close means open 24/7
@@ -54,7 +115,7 @@ export function isOpenAt(hours, checkTime = new Date()) {
     const start = toMinuteOfWeek(period.open);
     let end = toMinuteOfWeek(period.close);
     if (start === null || end === null) continue;
-    usablePeriods++;
+    usable++;
 
     // Periods that wrap past Saturday night into Sunday
     if (end <= start) end += MINUTES_PER_WEEK;
@@ -66,7 +127,7 @@ export function isOpenAt(hours, checkTime = new Date()) {
   }
 
   // Malformed data shouldn't hide a place
-  return usablePeriods === 0;
+  return usable === 0;
 }
 
 /**
@@ -79,7 +140,7 @@ export function getClosingTime(hours, checkTime = new Date()) {
   const { weekday, hour, minute } = getLocalParts(checkTime);
   const now = weekday * 24 * 60 + hour * 60 + minute;
 
-  for (const period of hours.periods) {
+  for (const period of usablePeriods(hours)) {
     if (!period.open || !period.close) continue;
     const start = toMinuteOfWeek(period.open);
     let end = toMinuteOfWeek(period.close);
